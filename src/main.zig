@@ -5,17 +5,29 @@
 const std = @import("std");
 
 pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+    const row_delimiter = "\n";
+    const col_delimiter = " ";
 
-    // stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
+    const allocator = std.heap.page_allocator;
+
+    // STDIN
+    const stdin = std.io.getStdIn().reader();
+    const input = try stdin.readAllAlloc(allocator, 1024 * 1024);
+    defer allocator.free(input);
+
+    // STDOUT
     const stdout_file = std.io.getStdOut().writer();
     var bw = std.io.bufferedWriter(stdout_file);
     const stdout = bw.writer();
 
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
+    var row_iter = std.mem.split(u8, input, row_delimiter);
+    while (row_iter.next()) |row| {
+        var col_iter = std.mem.split(u8, row, col_delimiter);
+        while (col_iter.next()) |entry| {
+            try stdout.print("{s}\t", .{entry});
+        }
+        try stdout.print("\n", .{});
+    }
 
     try bw.flush(); // Don't forget to flush!
 }
