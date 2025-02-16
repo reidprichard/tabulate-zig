@@ -130,13 +130,7 @@ pub fn main() !void {
     }
 
     // Print bottom border
-    for (field_widths.items, 0..) |width, col_num| {
-        try stdout.writeAll(if (col_num == 0) bottom_left else bottom_tee);
-        for (0..width) |_| {
-            try stdout.writeAll(horizontal);
-        }
-    }
-    try stdout.writeAll(bottom_right ++ "\n");
+    try print_horizontal_border(field_widths, stdout, bottom_left, bottom_tee, bottom_right);
 
     try bw.flush(); // Don't forget to flush!
 }
