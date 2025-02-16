@@ -105,29 +105,21 @@ pub fn main() !void {
         }
 
         var col_iter = std.mem.split(u8, row, col_delimiter);
-        var col_num: u32 = 0;
-        // Feel like these two while loops could be combined
-        while (col_iter.next()) |entry| : (col_num += 1) {
-            try stdout.print("{s}", .{entry});
-            for (0..field_widths.items[col_num] - entry.len) |_| {
+
+        for (field_widths.items) |width| {
+            var pos: usize = 0;
+            if (col_iter.next()) |entry| {
+                try stdout.print("{s}", .{entry});
+                pos += entry.len;
+            }
+            while (pos < width) : (pos += 1) {
                 try stdout.writeAll(" ");
-            }
-            if (col_num == field_widths.items.len - 1) {
-                try stdout.writeAll("\x1b[0m");
-            }
-            try stdout.writeAll(vertical);
-        }
-        while (col_num < field_widths.items.len) : (col_num += 1) {
-            for (0..field_widths.items[col_num]) |_| {
-                try stdout.writeAll(" ");
-            }
-            if (col_num == field_widths.items.len - 1) {
-                try stdout.writeAll("\x1b[0m");
             }
             try stdout.writeAll(vertical);
         }
         if (row_num % 2 == 0) {
-            try stdout.writeAll("\x1b[0m");
+            // backspace, disable color, vertical
+            try stdout.writeAll("\x08\x1b[0m" ++ vertical);
         }
         try stdout.writeAll("\n");
 
