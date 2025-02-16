@@ -8,11 +8,18 @@ pub fn main() !void {
     const row_delimiter = "\n";
     const col_delimiter = " ";
 
-    const allocator = std.heap.page_allocator;
+    const GiB: u32 = comptime std.math.pow(u32, 1024, 3);
+
+    // const allocator: std.mem.Allocator = std.heap.page_allocator;
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+
+    // var buf: [1024]u8 = [_]u8{0} ** 1024;
+    // const allocator: std.mem.Allocator = std.heap.FixedBufferAllocator.init(&buf);
 
     // STDIN
     const stdin = std.io.getStdIn().reader();
-    const input = try stdin.readAllAlloc(allocator, 1024 * 1024);
+    const input = try stdin.readAllAlloc(allocator, GiB);
     defer allocator.free(input);
 
     // STDOUT
