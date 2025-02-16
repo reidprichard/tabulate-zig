@@ -133,27 +133,18 @@ pub fn main() !void {
     // STDIN
     const stdin = std.io.getStdIn().reader();
     const input = try stdin.readAllAlloc(allocator, GiB);
+
     defer allocator.free(input);
     try write_table(allocator, input, row_delimiter, col_delimiter);
 }
 
-test "simple test" {
-    const reader = std.fs.File.reader();
-    reader.readAll("./test/1.txt");
-
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // Try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
-}
-
-test "fuzz example" {
-    const Context = struct {
-        fn testOne(context: @This(), input: []const u8) anyerror!void {
-            _ = context;
-            // Try passing `--fuzz` to `zig build test` and see if it manages to fail this test case!
-            try std.testing.expect(!std.mem.eql(u8, "canyoufindme", input));
-        }
-    };
-    try std.testing.fuzz(Context{}, Context.testOne, .{});
-}
+// test "simple test" {
+//     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+//     const allocator: std.mem.Allocator = gpa.allocator();
+//     const cwd = std.fs.cwd();
+//     const input = try cwd.readFileAlloc(allocator, "test/1.txt", 1024 * 1024 * 1024);
+//     defer allocator.free(input);
+//
+//     try write_table(allocator, input, " ", "\n");
+//     try std.testing.expect(true);
+// }
