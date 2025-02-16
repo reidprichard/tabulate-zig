@@ -25,7 +25,7 @@ const cross = "┼";
 
 fn print_horizontal_border(
     widths: @as(type, std.ArrayListAligned(usize, null)),
-    out: anytype,
+    out: anytype, // TODO: specify type
     left: []const u8,
     middle: []const u8,
     right: []const u8,
@@ -100,6 +100,10 @@ pub fn main() !void {
         }
         try stdout.writeAll(vertical);
 
+        if (row_num % 2 == 0) {
+            try stdout.writeAll("\x1b[48;5;253m");
+        }
+
         var col_iter = std.mem.split(u8, row, col_delimiter);
         var col_num: u32 = 0;
         // Feel like these two while loops could be combined
@@ -108,13 +112,22 @@ pub fn main() !void {
             for (0..field_widths.items[col_num] - entry.len) |_| {
                 try stdout.writeAll(" ");
             }
+            if (col_num == field_widths.items.len - 1) {
+                try stdout.writeAll("\x1b[0m");
+            }
             try stdout.writeAll(vertical);
         }
         while (col_num < field_widths.items.len) : (col_num += 1) {
             for (0..field_widths.items[col_num]) |_| {
                 try stdout.writeAll(" ");
             }
+            if (col_num == field_widths.items.len - 1) {
+                try stdout.writeAll("\x1b[0m");
+            }
             try stdout.writeAll(vertical);
+        }
+        if (row_num % 2 == 0) {
+            try stdout.writeAll("\x1b[0m");
         }
         try stdout.writeAll("\n");
 
