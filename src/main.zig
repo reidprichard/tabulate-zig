@@ -27,19 +27,79 @@ pub fn main() !void {
     var bw = std.io.bufferedWriter(stdout_file);
     const stdout = bw.writer();
 
+    // If a field has more than 4_294_967_295 chars I've got bigger problems
+    var field_widths = std.ArrayList(usize).init(allocator);
+    defer field_widths.deinit();
+
     var row_iter = std.mem.split(u8, input, row_delimiter);
     while (row_iter.next()) |row| {
         var col_iter = std.mem.split(u8, row, col_delimiter);
+        var col_num: u32 = 0;
+        // Surely this isn't the right way to do this...?
         while (col_iter.next()) |entry| {
-            try stdout.print("{s}\t", .{entry});
+            const len = entry.len;
+            if (col_num == field_widths.items.len) {
+                try field_widths.append(len);
+            } else {
+                field_widths.items[col_num] = @max(len, field_widths.items[col_num]);
+            }
+            col_num += 1;
         }
-        try stdout.print("\n", .{});
+    }
+
+    row_iter.reset();
+
+    const col_padding = "│";
+
+    // const vertical = "│";
+    // const horizontal = "─";
+    //
+    // const top_left = "┌";
+    // const top_right = "┐";
+    //
+    // const bottom_left = "└";
+    // const bottom_right = "┘";
+    //
+    // const right_tee = "┤";
+    // const left_tee = "├";
+    // const bottom_tee = "┴";
+    // const top_tee = "┬";
+    //
+    // const cross = "┼";
+
+    while (row_iter.next()) |row| {
+        if (row.len == 0) {
+            break; // to handle trailing newline
+        }
+        var col_iter = std.mem.split(u8, row, col_delimiter);
+        var col_num: u32 = 0;
+        while (col_iter.next()) |entry| {
+            try stdout.print("{s}", .{entry});
+            for (0..field_widths.items[col_num] - entry.len) |_| {
+                // try stdout.print("{s}", " ");
+                try stdout.writeAll(" ");
+            }
+            try stdout.writeAll(col_padding);
+            col_num += 1;
+        }
+        while (col_num < field_widths.items.len) {
+            for (0..field_widths.items[col_num]) |_| {
+                // try stdout.print("{s}", " ");
+                try stdout.writeAll(" ");
+            }
+            col_num += 1;
+            try stdout.writeAll(col_padding);
+        }
+        try stdout.writeAll("\n");
     }
 
     try bw.flush(); // Don't forget to flush!
 }
 
 test "simple test" {
+    const reader = std.fs.File.reader();
+    reader.readAll("./test/1.txt");
+
     var list = std.ArrayList(i32).init(std.testing.allocator);
     defer list.deinit(); // Try commenting this out and see if zig detects the memory leak!
     try list.append(42);
