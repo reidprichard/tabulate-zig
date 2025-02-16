@@ -3,6 +3,21 @@
 //! is to delete this file and start with root.zig instead.
 
 const std = @import("std");
+const vertical = "│";
+const horizontal = "─";
+
+const top_left = "┌";
+const top_right = "┐";
+
+const bottom_left = "└";
+const bottom_right = "┘";
+
+const right_tee = "┤";
+const left_tee = "├";
+const bottom_tee = "┴";
+const top_tee = "┬";
+
+const cross = "┼";
 
 pub fn main() !void {
     const row_delimiter = "\n";
@@ -30,9 +45,13 @@ pub fn main() !void {
     // If a field has more than 4_294_967_295 chars I've got bigger problems
     var field_widths = std.ArrayList(usize).init(allocator);
     defer field_widths.deinit();
+    var row_count: usize = 0;
 
     var row_iter = std.mem.split(u8, input, row_delimiter);
     while (row_iter.next()) |row| {
+        if (row.len == 0) {
+            break; // to handle trailing newline
+        }
         var col_iter = std.mem.split(u8, row, col_delimiter);
         var col_num: u32 = 0;
         // Surely this isn't the right way to do this...?
@@ -45,53 +64,57 @@ pub fn main() !void {
             }
             col_num += 1;
         }
+        row_count += 1;
     }
 
     row_iter.reset();
 
-    const col_padding = "│";
+    // Print top border
+    for (field_widths.items, 0..) |width, col_num| {
+        try stdout.writeAll(if (col_num == 0) top_left else top_tee);
+        for (0..width) |_| {
+            try stdout.writeAll(horizontal);
+        }
+    }
+    try stdout.writeAll(top_right ++ "\n");
 
-    // const vertical = "│";
-    // const horizontal = "─";
-    //
-    // const top_left = "┌";
-    // const top_right = "┐";
-    //
-    // const bottom_left = "└";
-    // const bottom_right = "┘";
-    //
-    // const right_tee = "┤";
-    // const left_tee = "├";
-    // const bottom_tee = "┴";
-    // const top_tee = "┬";
-    //
-    // const cross = "┼";
-
+    // Print data
+    var row_num: usize = 0;
     while (row_iter.next()) |row| {
         if (row.len == 0) {
             break; // to handle trailing newline
         }
+        try stdout.writeAll(vertical);
+
         var col_iter = std.mem.split(u8, row, col_delimiter);
         var col_num: u32 = 0;
         while (col_iter.next()) |entry| {
             try stdout.print("{s}", .{entry});
             for (0..field_widths.items[col_num] - entry.len) |_| {
-                // try stdout.print("{s}", " ");
                 try stdout.writeAll(" ");
             }
-            try stdout.writeAll(col_padding);
+            try stdout.writeAll(vertical);
             col_num += 1;
         }
         while (col_num < field_widths.items.len) {
             for (0..field_widths.items[col_num]) |_| {
-                // try stdout.print("{s}", " ");
                 try stdout.writeAll(" ");
             }
             col_num += 1;
-            try stdout.writeAll(col_padding);
+            try stdout.writeAll(vertical);
         }
         try stdout.writeAll("\n");
+        row_num += 1;
     }
+
+    // Print bottom border
+    for (field_widths.items, 0..) |width, col_num| {
+        try stdout.writeAll(if (col_num == 0) bottom_left else bottom_tee);
+        for (0..width) |_| {
+            try stdout.writeAll(horizontal);
+        }
+    }
+    try stdout.writeAll(bottom_right ++ "\n");
 
     try bw.flush(); // Don't forget to flush!
 }
