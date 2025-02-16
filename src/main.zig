@@ -23,40 +23,7 @@ const top_tee = "┬";
 
 const cross = "┼";
 
-fn print_horizontal_border(
-    widths: @as(type, std.ArrayListAligned(usize, null)),
-    out: anytype, // TODO: specify type
-    left: []const u8,
-    middle: []const u8,
-    right: []const u8,
-) !void {
-    for (widths.items, 0..) |width, i| {
-        try out.writeAll(if (i == 0) left else middle);
-        for (0..width) |_| {
-            try out.writeAll(horizontal);
-        }
-    }
-    try out.print("{s}\n", .{right});
-}
-
-pub fn main() !void {
-    const row_delimiter = "\n";
-    const col_delimiter = " ";
-
-    const GiB: u32 = comptime std.math.pow(u32, 1024, 3);
-
-    // const allocator: std.mem.Allocator = std.heap.page_allocator;
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator: std.mem.Allocator = gpa.allocator();
-
-    // var buf: [1024]u8 = [_]u8{0} ** 1024;
-    // const allocator: std.mem.Allocator = std.heap.FixedBufferAllocator.init(&buf);
-
-    // STDIN
-    const stdin = std.io.getStdIn().reader();
-    const input = try stdin.readAllAlloc(allocator, GiB);
-    defer allocator.free(input);
-
+pub fn write_table(allocator: std.mem.Allocator, input: []const u8, row_delimiter: []const u8, col_delimiter: []const u8) !void {
     // STDOUT
     const stdout_file = std.io.getStdOut().writer();
     var bw = std.io.bufferedWriter(stdout_file);
@@ -88,8 +55,6 @@ pub fn main() !void {
     }
 
     row_iter.reset();
-
-    // Print top border
     try print_horizontal_border(field_widths, stdout, top_left, top_tee, top_right);
 
     // Print data
@@ -133,6 +98,43 @@ pub fn main() !void {
     try print_horizontal_border(field_widths, stdout, bottom_left, bottom_tee, bottom_right);
 
     try bw.flush(); // Don't forget to flush!
+
+}
+
+fn print_horizontal_border(
+    widths: @as(type, std.ArrayListAligned(usize, null)),
+    out: anytype, // TODO: specify type
+    left: []const u8,
+    middle: []const u8,
+    right: []const u8,
+) !void {
+    for (widths.items, 0..) |width, i| {
+        try out.writeAll(if (i == 0) left else middle);
+        for (0..width) |_| {
+            try out.writeAll(horizontal);
+        }
+    }
+    try out.print("{s}\n", .{right});
+}
+
+pub fn main() !void {
+    const row_delimiter = "\n";
+    const col_delimiter = " ";
+
+    const GiB: u32 = comptime std.math.pow(u32, 1024, 3);
+
+    // const allocator: std.mem.Allocator = std.heap.page_allocator;
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator: std.mem.Allocator = gpa.allocator();
+
+    // var buf: [1024]u8 = [_]u8{0} ** 1024;
+    // const allocator: std.mem.Allocator = std.heap.FixedBufferAllocator.init(&buf);
+
+    // STDIN
+    const stdin = std.io.getStdIn().reader();
+    const input = try stdin.readAllAlloc(allocator, GiB);
+    defer allocator.free(input);
+    try write_table(allocator, input, row_delimiter, col_delimiter);
 }
 
 test "simple test" {
