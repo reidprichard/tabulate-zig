@@ -88,6 +88,7 @@ pub fn main() !void {
 
         var col_iter = std.mem.split(u8, row, col_delimiter);
         var col_num: u32 = 0;
+        // Feel like these two while loops could be combined
         while (col_iter.next()) |entry| : (col_num += 1) {
             try stdout.print("{s}", .{entry});
             for (0..field_widths.items[col_num] - entry.len) |_| {
@@ -102,6 +103,17 @@ pub fn main() !void {
             try stdout.writeAll(vertical);
         }
         try stdout.writeAll("\n");
+
+        if (row_num < row_count - 1) {
+            for (field_widths.items, 0..) |width, i| {
+                try stdout.writeAll(if (i == 0) left_tee else cross);
+                for (0..width) |_| {
+                    try stdout.writeAll(horizontal);
+                }
+            }
+            try stdout.writeAll(right_tee ++ "\n");
+        }
+
         row_num += 1;
     }
 
