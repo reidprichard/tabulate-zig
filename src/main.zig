@@ -3,14 +3,18 @@
 //! is to delete this file and start with root.zig instead.
 
 const std = @import("std");
+
 const vertical = "│";
 const horizontal = "─";
 
 const top_left = "┌";
 const top_right = "┐";
-
 const bottom_left = "└";
 const bottom_right = "┘";
+// const top_left = "╭";
+// const top_right = "╮";
+// const bottom_left = "╰";
+// const bottom_right = "╯";
 
 const right_tee = "┤";
 const left_tee = "├";
@@ -18,6 +22,22 @@ const bottom_tee = "┴";
 const top_tee = "┬";
 
 const cross = "┼";
+
+fn print_horizontal_border(
+    widths: @as(type, std.ArrayListAligned(usize, null)),
+    out: anytype,
+    left: []const u8,
+    middle: []const u8,
+    right: []const u8,
+) !void {
+    for (widths.items, 0..) |width, i| {
+        try out.writeAll(if (i == 0) left else middle);
+        for (0..width) |_| {
+            try out.writeAll(horizontal);
+        }
+    }
+    try out.print("{s}\n", .{right});
+}
 
 pub fn main() !void {
     const row_delimiter = "\n";
@@ -27,7 +47,7 @@ pub fn main() !void {
 
     // const allocator: std.mem.Allocator = std.heap.page_allocator;
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
+    const allocator: std.mem.Allocator = gpa.allocator();
 
     // var buf: [1024]u8 = [_]u8{0} ** 1024;
     // const allocator: std.mem.Allocator = std.heap.FixedBufferAllocator.init(&buf);
@@ -70,13 +90,7 @@ pub fn main() !void {
     row_iter.reset();
 
     // Print top border
-    for (field_widths.items, 0..) |width, col_num| {
-        try stdout.writeAll(if (col_num == 0) top_left else top_tee);
-        for (0..width) |_| {
-            try stdout.writeAll(horizontal);
-        }
-    }
-    try stdout.writeAll(top_right ++ "\n");
+    try print_horizontal_border(field_widths, stdout, top_left, top_tee, top_right);
 
     // Print data
     var row_num: usize = 0;
@@ -105,15 +119,8 @@ pub fn main() !void {
         try stdout.writeAll("\n");
 
         if (row_num < row_count - 1) {
-            for (field_widths.items, 0..) |width, i| {
-                try stdout.writeAll(if (i == 0) left_tee else cross);
-                for (0..width) |_| {
-                    try stdout.writeAll(horizontal);
-                }
-            }
-            try stdout.writeAll(right_tee ++ "\n");
+            try print_horizontal_border(field_widths, stdout, left_tee, cross, right_tee);
         }
-
         row_num += 1;
     }
 
