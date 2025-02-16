@@ -88,19 +88,17 @@ pub fn main() !void {
 
         var col_iter = std.mem.split(u8, row, col_delimiter);
         var col_num: u32 = 0;
-        while (col_iter.next()) |entry| {
+        while (col_iter.next()) |entry| : (col_num += 1) {
             try stdout.print("{s}", .{entry});
             for (0..field_widths.items[col_num] - entry.len) |_| {
                 try stdout.writeAll(" ");
             }
             try stdout.writeAll(vertical);
-            col_num += 1;
         }
-        while (col_num < field_widths.items.len) {
+        while (col_num < field_widths.items.len) : (col_num += 1) {
             for (0..field_widths.items[col_num]) |_| {
                 try stdout.writeAll(" ");
             }
-            col_num += 1;
             try stdout.writeAll(vertical);
         }
         try stdout.writeAll("\n");
