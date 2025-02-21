@@ -25,8 +25,63 @@ const top_tee = "┬";
 
 const cross = "┼";
 
-pub fn write_table(allocator: std.mem.Allocator, stdout: anytype, input: []const u8, row_delimiter: []const u8, col_delimiter: []const u8) !void {
+pub fn main() !void {
+    const BUF_LEN = 64;
+    var row_delimiter = [_]u8{0} ** BUF_LEN;
+    var col_delimiter = [_]u8{0} ** BUF_LEN;
 
+    row_delimiter[0] = '\n';
+    col_delimiter[0] = ' ';
+
+    var args = std.process.args();
+
+    const stdout_file = std.io.getStdOut().writer();
+    var bw = std.io.bufferedWriter(stdout_file);
+    const stdout = bw.writer();
+
+    while (args.next()) |arg| {
+        try stdout.print("{s}\n", .{arg});
+        if (arg.len < 2) {
+            break; //return error{InvalidArgument};
+        }
+        if (std.mem.eql(u8, arg, "--row-delimiter")) {
+            const value = args.next().?;
+            if (value.len > BUF_LEN) {
+                try stdout.writeAll("ERROR");
+                return;
+            }
+            std.mem.copyForwards(u8, &row_delimiter, value);
+            // row_delimiter = args.next().?;
+        } else if (std.mem.eql(u8, arg, "--col-delimiter")) {
+            std.mem.copyForwards(u8, &col_delimiter, args.next().?);
+        }
+    }
+
+    // const allocator: std.mem.Allocator = std.heap.page_allocator;
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator: std.mem.Allocator = gpa.allocator();
+
+    // var buf: [1024]u8 = [_]u8{0} ** 1024;
+    // const allocator: std.mem.Allocator = std.heap.FixedBufferAllocator.init(&buf);
+
+    // STDIN
+    const stdin = std.io.getStdIn().reader();
+    const input = try stdin.readAllAlloc(allocator, GiB);
+    defer allocator.free(input);
+
+    const zero = [_]u8{0};
+
+    try write_table(
+        allocator,
+        stdout,
+        input,
+        row_delimiter[0..std.mem.indexOf(u8, &row_delimiter, &zero).?],
+        col_delimiter[0..std.mem.indexOf(u8, &col_delimiter, &zero).?],
+    );
+    try bw.flush(); // Don't forget to flush!
+}
+
+pub fn write_table(allocator: std.mem.Allocator, stdout: anytype, input: []const u8, row_delimiter: []const u8, col_delimiter: []const u8) !void {
     // If a field has more than 4_294_967_295 chars I've got bigger problems
     var field_widths = std.ArrayList(usize).init(allocator);
     defer field_widths.deinit();
@@ -110,62 +165,6 @@ fn print_horizontal_border(
         }
     }
     try out.print("{s}\n", .{right});
-}
-
-pub fn main() !void {
-    const BUF_LEN = 64;
-    var row_delimiter = [_]u8{0} ** BUF_LEN;
-    var col_delimiter = [_]u8{0} ** BUF_LEN;
-
-    row_delimiter[0] = '\n';
-    col_delimiter[0] = ' ';
-
-    var args = std.process.args();
-
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
-
-    while (args.next()) |arg| {
-        try stdout.print("{s}\n", .{arg});
-        if (arg.len < 2) {
-            break; //return error{InvalidArgument};
-        }
-        if (std.mem.eql(u8, arg, "--row-delimiter")) {
-            const value = args.next().?;
-            if (value.len > BUF_LEN) {
-                try stdout.writeAll("ERROR");
-                return;
-            }
-            std.mem.copyForwards(u8, &row_delimiter, value);
-            // row_delimiter = args.next().?;
-        } else if (std.mem.eql(u8, arg, "--col-delimiter")) {
-            std.mem.copyForwards(u8, &col_delimiter, args.next().?);
-        }
-    }
-
-    // const allocator: std.mem.Allocator = std.heap.page_allocator;
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator: std.mem.Allocator = gpa.allocator();
-
-    // var buf: [1024]u8 = [_]u8{0} ** 1024;
-    // const allocator: std.mem.Allocator = std.heap.FixedBufferAllocator.init(&buf);
-
-    // STDIN
-    const stdin = std.io.getStdIn().reader();
-    const input = try stdin.readAllAlloc(allocator, GiB);
-    defer allocator.free(input);
-
-    const zero = [_]u8{0};
-
-    try write_table(
-        allocator,
-        stdout,
-        input,
-        row_delimiter[0..std.mem.indexOf(u8, &row_delimiter, &zero).?],
-        col_delimiter[0..std.mem.indexOf(u8, &col_delimiter, &zero).?],
-    );
-    try bw.flush(); // Don't forget to flush!
 }
 
 // test "simple test" {
