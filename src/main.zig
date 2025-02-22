@@ -42,55 +42,13 @@ const CornerBold = [4]*const [3:0]u8{ "┏", "┓", "┗", "┛" };
 //
 // ┼  ┽  ┿  ╂  ╋
 
+// ─  ━  │  ┃  ┄  ┅  ┆  ┇  ┈  ┉  ┊  ┋  ╌  ╍  ╎  ╏  ═  ║  ┌  ┍  ┎  ┏  ┐  ┑  ┒  ┓  └  ┕  ┖  ┗  ┘  ┙  ┚  ┛  ├  ┝  ┠  ┣  ┤  ┥  ┨  ┫  ┬  ┯  ┰  ┳  ┴  ┷  ┸  ┻  ┼  ┽  ┿  ╂  ╋  ╒  ╓  ╔  ╕  ╖  ╗  ╘  ╙  ╚  ╛  ╜  ╝  ╞  ╟  ╠  ╡  ╢  ╣  ╤  ╥  ╦  ╧  ╨  ╩  ╪  ╫  ╬  ╭  ╮  ╯ ╰
 const CornerTypes = enum {
     top_left,
     top_right,
     bottom_left,
     bottom_right,
 };
-// ─  ━  │  ┃
-//
-// ┄  ┅  ┆  ┇
-//
-// ┈  ┉  ┊  ┋
-//
-// ╌  ╍  ╎  ╏
-//
-// ═     ║
-//
-// ┌  ┍  ┎  ┏
-//
-// ┐  ┑  ┒  ┓
-//
-// └  ┕  ┖  ┗
-//
-// ┘  ┙  ┚  ┛
-//
-// ├  ┝  ┠  ┣
-//
-// ┤  ┥  ┨  ┫
-//
-// ┬  ┯  ┰  ┳
-//
-// ┴  ┷  ┸  ┻
-//
-// ┼  ┽  ┿  ╂  ╋
-//
-// ╒  ╓  ╔  ╕  ╖  ╗
-//
-// ╘  ╙  ╚  ╛  ╜  ╝
-//
-// ╞  ╟  ╠
-//
-// ╡  ╢  ╣
-//
-// ╤  ╥  ╦
-//
-// ╧  ╨  ╩
-//
-// ╪  ╫  ╬
-//
-// ╭  ╮  ╯ ╰
 
 const TopDelimiters = enum(*const [:0]u8) {
     // left = "A",
@@ -152,7 +110,7 @@ pub fn main() !void {
     var row_borders = std.AutoHashMap(BorderPos, BorderFmt).init(allocator);
     try row_borders.put(.outer, BorderFmt{ .weight = .bold, .style = .solid });
     var col_borders = std.AutoHashMap(BorderPos, BorderFmt).init(allocator);
-    try col_borders.put(.first, BorderFmt{ .weight = .normal, .style = .solid });
+    try col_borders.put(.all, BorderFmt{ .weight = .normal, .style = .solid });
 
     row_delimiter[0] = '\n';
     col_delimiter[0] = ' ';
@@ -239,13 +197,15 @@ pub fn print_table(
         row_count += 1;
     }
 
-    // Top border
-    if (format.horizontal.get(.outer)) |_| {
+    // Top border - could this be abstracted with comptime?
+    if (format.horizontal.get(.outer)) |outer_hborder| {
+        const style = outer_hborder.style;
+        const weight = outer_hborder.weight;
         try print_horizontal_border(
             field_widths,
             stdout,
             CornerNormal[@intFromEnum(Corner.top_left)],
-            HorizontalLineNormal[@intFromEnum(Straight.solid)],
+            (if (weight == .normal) HorizontalLineNormal else HorizontalLineBold)[@intFromEnum(style)],
             CornerNormal[@intFromEnum(Corner.top_right)],
         );
     }
@@ -323,13 +283,15 @@ pub fn print_table(
         row_num += 1;
     }
 
-    // Print bottom border
-    if (format.horizontal.get(.outer)) |_| {
+    // Bottom border - could this be abstracted with comptime?
+    if (format.horizontal.get(.outer)) |outer_hborder| {
+        const style = outer_hborder.style;
+        const weight = outer_hborder.weight;
         try print_horizontal_border(
             field_widths,
             stdout,
             CornerNormal[@intFromEnum(Corner.bottom_left)],
-            HorizontalLineNormal[@intFromEnum(Straight.solid)],
+            (if (weight == .normal) HorizontalLineNormal else HorizontalLineBold)[@intFromEnum(style)],
             CornerNormal[@intFromEnum(Corner.bottom_right)],
         );
     }
@@ -345,36 +307,11 @@ fn print_horizontal_border(
     for (widths.items, 0..) |width, i| {
         try out.writeAll(if (i == 0) left else middle);
         for (0..width) |_| {
-            try out.writeAll(HorizontalLineNormal[@intFromEnum(Straight.solid)]);
+            try out.writeAll(middle);
         }
     }
     try out.print("{s}\n", .{right});
 }
-
-// fn print_horizontal_border(
-//     widths: @as(type, std.ArrayListAligned(usize, null)),
-//     stdout: anytype, // TODO: specify type
-//     format: BorderFmt,
-// ) !void {
-//     const weight = format.weight;
-//     const style = format.style;
-//
-//     try stdout.writeAll(switch (weight) {
-//         .normal => HorizontalLineNormal[@intFromEnum(style)],
-//         .bold => HorizontalLineNormal[@intFromEnum(style)],
-//     });
-//
-//     for (widths.items) |width| {
-//         for (0..width) |_| {
-//             try stdout.writeAll(switch (weight) {
-//                 .normal => HorizontalLineNormal[@intFromEnum(style)],
-//                 .bold => HorizontalLineNormal[@intFromEnum(style)],
-//             });
-//         }
-//     }
-//     // try out.print("{s}\n", .{right});
-//     try stdout.writeAll("\n");
-// }
 
 // test "simple test" {
 //     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
