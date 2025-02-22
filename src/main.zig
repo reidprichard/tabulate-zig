@@ -240,6 +240,7 @@ pub fn print_table(
         var col_iter = std.mem.split(u8, row, format.col_delimiter);
 
         for (field_widths.items, 0..) |width, i| {
+            // Print this cell
             var pos: usize = 0;
             if (col_iter.next()) |entry| {
                 try stdout.print("{s}", .{entry});
@@ -249,10 +250,12 @@ pub fn print_table(
                 try stdout.writeAll(" ");
             }
 
+            // Disable color
             if (i == field_widths.items.len - 1 and format.color and row_num % 2 == 0) {
                 try stdout.writeAll("\x1b[0m");
             }
 
+            // Print vertical field separator
             try stdout.writeAll(if (format.vertical.get(if (i < field_widths.items.len - 1) .all else .outer)) |border| if_blk: {
                 const weight = border.weight;
                 const style = border.style;
@@ -317,6 +320,7 @@ fn print_horizontal_border(
     const h_style = horiz_format.style;
     const horiz = (if (h_weight == .normal) HorizontalLineNormal else HorizontalLineBold);
 
+    // TODO: remove repeated code between `left` and `right`
     const left: *const [3:0]u8 = if (vertical.get(.outer)) |v_format| corner: {
         const corner_weight: usize = @intFromEnum(get_corner_weight(h_weight, v_format.weight));
         switch (location) {
