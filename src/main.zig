@@ -78,8 +78,8 @@ const top_tee = "┬";
 
 const cross = "┼";
 
-const BorderPos = enum { outer, first, all };
-
+const BorderPos = enum { top, middle, bottom };
+const BorderType = enum { outer, first, all };
 const BorderWeight = enum { normal, bold };
 const BorderStyle = enum { solid, dash2, dash3, dash4 };
 
@@ -92,8 +92,8 @@ const TableFormat = struct {
     row_delimiter: []u8,
     col_delimiter: []u8,
     color: bool,
-    horizontal: std.AutoHashMap(BorderPos, BorderFmt),
-    vertical: std.AutoHashMap(BorderPos, BorderFmt),
+    horizontal: std.AutoHashMap(BorderType, BorderFmt),
+    vertical: std.AutoHashMap(BorderType, BorderFmt),
 };
 
 pub fn main() !void {
@@ -108,9 +108,9 @@ pub fn main() !void {
     var row_delimiter = [_]u8{0} ** MAX_DELIM_LEN;
     var col_delimiter = [_]u8{0} ** MAX_DELIM_LEN;
 
-    var row_borders = std.AutoHashMap(BorderPos, BorderFmt).init(allocator);
+    var row_borders = std.AutoHashMap(BorderType, BorderFmt).init(allocator);
     try row_borders.put(.outer, BorderFmt{ .weight = .bold, .style = .solid });
-    var col_borders = std.AutoHashMap(BorderPos, BorderFmt).init(allocator);
+    var col_borders = std.AutoHashMap(BorderType, BorderFmt).init(allocator);
     try col_borders.put(.all, BorderFmt{ .weight = .normal, .style = .solid });
 
     row_delimiter[0] = '\n';
@@ -198,12 +198,13 @@ pub fn print_table(
         row_count += 1;
     }
 
-    if (format.horizontal.get(.outer)) |outer_hborder| {
+    if (format.horizontal.get(.outer)) |top_hborder| {
         try print_horizontal_border_new(
             field_widths,
             stdout,
-            outer_hborder,
+            top_hborder,
             format.vertical,
+            .top,
         );
     }
 
@@ -282,37 +283,28 @@ pub fn print_table(
     }
 
     // Bottom border - could this be abstracted with comptime?
-    if (format.horizontal.get(.outer)) |outer_hborder| {
-        const style = outer_hborder.style;
-        const weight = outer_hborder.weight;
-        try print_horizontal_border(
+    if (format.horizontal.get(.outer)) |bottom_hborder| {
+        try print_horizontal_border_new(
             field_widths,
             stdout,
-            CornerNormal[@intFromEnum(Corner.bottom_left)],
-            (if (weight == .normal) HorizontalLineNormal else HorizontalLineBold)[@intFromEnum(style)],
-            CornerNormal[@intFromEnum(Corner.bottom_right)],
+            bottom_hborder,
+            format.vertical,
+            .bottom,
         );
     }
 }
-
-const BorderLoc = enum { top, middle, bottom };
 
 fn print_horizontal_border_new(
     widths: @as(type, std.ArrayListAligned(usize, null)),
     stdout: anytype, // TODO: specify type
     horiz_format: BorderFmt,
-    vertical: std.AutoHashMap(BorderPos, BorderFmt),
-    // location: BorderLoc
+    vertical: std.AutoHashMap(BorderType, BorderFmt),
+    location: BorderPos,
 ) !void {
-
-    // If no vertical border:
-    //  If bold, bold horizontal line, else normal horizontal line
-    // Else:
-    //  Set CornerWeights
-    //  If top, top corner[cornerweights]
-    //  If middle, tee[cornerweights]
-    //  If bottom, bottom cornercornerweights]
     const h_weight = horiz_format.weight;
+    const h_style = horiz_format.style;
+
+    const horiz = (if (h_weight == .normal) HorizontalLineNormal else HorizontalLineBold);
 
     const left: *const [3:0]u8 = if (vertical.get(.outer)) |v_format| blk: {
         const v_weight = v_format.weight;
@@ -325,23 +317,27 @@ fn print_horizontal_border_new(
         } else norm: {
             break :norm .normal;
         };
-        break :blk TopLeft[@intFromEnum(corner_weight)];
+        const i = @intFromEnum(corner_weight);
+        switch (location) {
+            .top => break :blk TopLeft[i],
+            .middle => break :blk LeftTee[i],
+            .bottom => break :blk BottomLeft[i],
+        }
     } else horiz: {
-        break :horiz HorizontalLineNormal[@intFromEnum(h_weight)];
+        break :horiz horiz[@intFromEnum(h_style)];
     };
 
     for (widths.items, 0..) |width, i| {
         try stdout.print("{s}", .{if (i == 0) left: {
             break :left left;
-        } else if (i == widths.items.len - 1) right: {
-            break :right left;
         } else horiz: {
-            break :horiz HorizontalLineNormal[@intFromEnum(h_weight)];
+            break :horiz horiz[@intFromEnum(h_style)];
         }});
         for (0..width) |_| {
-            try stdout.print("{s}", .{HorizontalLineNormal[@intFromEnum(h_weight)]});
+            try stdout.print("{s}", .{horiz[@intFromEnum(h_style)]});
         }
     }
+    try stdout.writeAll(left ++ "\n");
 }
 
 fn print_horizontal_border(
