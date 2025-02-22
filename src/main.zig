@@ -149,9 +149,10 @@ pub fn main() !void {
     var row_delimiter = [_]u8{0} ** MAX_DELIM_LEN;
     var col_delimiter = [_]u8{0} ** MAX_DELIM_LEN;
 
-    var borders = std.AutoHashMap(BorderPos, BorderFmt).init(allocator);
-    try borders.put(.outer, BorderFmt{ .weight = .bold, .style = .solid });
-    try borders.put(.first, BorderFmt{ .weight = .normal, .style = .solid });
+    var row_borders = std.AutoHashMap(BorderPos, BorderFmt).init(allocator);
+    try row_borders.put(.outer, BorderFmt{ .weight = .bold, .style = .solid });
+    var col_borders = std.AutoHashMap(BorderPos, BorderFmt).init(allocator);
+    try col_borders.put(.first, BorderFmt{ .weight = .normal, .style = .solid });
 
     row_delimiter[0] = '\n';
     col_delimiter[0] = ' ';
@@ -160,8 +161,8 @@ pub fn main() !void {
         .row_delimiter = row_delimiter[0..1],
         .col_delimiter = col_delimiter[0..1],
         .color = true,
-        .horizontal = borders,
-        .vertical = borders,
+        .horizontal = row_borders,
+        .vertical = col_borders,
     };
 
     var args = std.process.args();
@@ -257,16 +258,18 @@ pub fn print_table(
             break; // to handle trailing newline
         }
 
-        if (format.horizontal.get(.outer)) |border| {
-            const weight = border.weight;
-            const style = border.style;
-            try stdout.writeAll(switch (weight) {
-                .normal => VerticalLineNormal[@intFromEnum(style)],
-                .bold => VerticalLineNormal[@intFromEnum(style)],
-            });
-        } else {
-            try stdout.writeAll(" ");
-        }
+        // First vertical boundary of row
+        try stdout.writeAll(if (format.horizontal.get(.all)) |hborder| if_blk: {
+            const weight = hborder.weight;
+            const style = hborder.style;
+            switch (weight) {
+                .normal => break :if_blk VerticalLineNormal[@intFromEnum(style)],
+                .bold => break :if_blk VerticalLineNormal[@intFromEnum(style)],
+            }
+        } else else_blk: {
+            // two null bytes to match slice sice of box drawing chars
+            break :else_blk " \x00\x00";
+        });
 
         if (format.color and row_num % 2 == 0) {
             // Shade the row background
@@ -288,16 +291,21 @@ pub fn print_table(
             if (i == field_widths.items.len - 1 and format.color and row_num % 2 == 0) {
                 try stdout.writeAll("\x1b[0m");
             }
-            if (format.horizontal.get(if (i < field_widths.items.len - 1) .all else .outer)) |border| {
+
+            // Vertical border between cells on the same line
+            // 1. Use outer if it exists
+            // 2. Use first if it exists
+            // 3. Use all if it exists
+            try stdout.writeAll(if (format.horizontal.get(if (i < field_widths.items.len - 1) .all else .outer)) |border| if_blk: {
                 const weight = border.weight;
                 const style = border.style;
-                try stdout.writeAll(switch (weight) {
-                    .normal => VerticalLineNormal[@intFromEnum(style)],
-                    .bold => VerticalLineNormal[@intFromEnum(style)],
-                });
-            } else {
-                try stdout.writeAll(" ");
-            }
+                switch (weight) {
+                    .normal => break :if_blk VerticalLineNormal[@intFromEnum(style)],
+                    .bold => break :if_blk VerticalLineNormal[@intFromEnum(style)],
+                }
+            } else else_blk: {
+                break :else_blk " \x00\x00";
+            });
         }
         try stdout.writeAll("\n");
 
