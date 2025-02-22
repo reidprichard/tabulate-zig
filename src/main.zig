@@ -253,16 +253,12 @@ pub fn print_table(
                 try stdout.writeAll("\x1b[0m");
             }
 
-            // Vertical border between cells on the same line
-            // 1. Use outer if it exists
-            // 2. Use first if it exists
-            // 3. Use all if it exists
             try stdout.writeAll(if (format.vertical.get(if (i < field_widths.items.len - 1) .all else .outer)) |border| if_blk: {
                 const weight = border.weight;
                 const style = border.style;
                 switch (weight) {
                     .normal => break :if_blk VerticalLineNormal[@intFromEnum(style)],
-                    .bold => break :if_blk VerticalLineNormal[@intFromEnum(style)],
+                    .bold => break :if_blk VerticalLineBold[@intFromEnum(style)],
                 }
             } else else_blk: {
                 break :else_blk " \x00\x00";
