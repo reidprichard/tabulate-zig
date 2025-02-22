@@ -110,6 +110,7 @@ pub fn main() !void {
 
     var row_borders = std.AutoHashMap(BorderType, BorderFmt).init(allocator);
     try row_borders.put(.outer, BorderFmt{ .weight = .bold, .style = .solid });
+    try row_borders.put(.all, BorderFmt{ .weight = .normal, .style = .dash2 });
     var col_borders = std.AutoHashMap(BorderType, BorderFmt).init(allocator);
     try col_borders.put(.all, BorderFmt{ .weight = .normal, .style = .solid });
 
@@ -199,7 +200,7 @@ pub fn print_table(
     }
 
     if (format.horizontal.get(.outer)) |top_hborder| {
-        try print_horizontal_border_new(
+        try print_horizontal_border(
             field_widths,
             stdout,
             top_hborder,
@@ -269,13 +270,13 @@ pub fn print_table(
 
         // Right side border
         if (row_num < row_count - 1) {
-            if (format.horizontal.get(.all)) |_| {
+            if (format.horizontal.get(.all)) |middle_hborder| {
                 try print_horizontal_border(
                     field_widths,
                     stdout,
-                    CornerNormal[@intFromEnum(Corner.bottom_left)],
-                    HorizontalLineNormal[@intFromEnum(Straight.solid)],
-                    CornerNormal[@intFromEnum(Corner.bottom_right)],
+                    middle_hborder,
+                    format.vertical,
+                    .middle,
                 );
             }
         }
@@ -284,7 +285,7 @@ pub fn print_table(
 
     // Bottom border - could this be abstracted with comptime?
     if (format.horizontal.get(.outer)) |bottom_hborder| {
-        try print_horizontal_border_new(
+        try print_horizontal_border(
             field_widths,
             stdout,
             bottom_hborder,
@@ -294,7 +295,7 @@ pub fn print_table(
     }
 }
 
-fn print_horizontal_border_new(
+fn print_horizontal_border(
     widths: @as(type, std.ArrayListAligned(usize, null)),
     stdout: anytype, // TODO: specify type
     horiz_format: BorderFmt,
@@ -338,25 +339,6 @@ fn print_horizontal_border_new(
         }
     }
     try stdout.writeAll(left ++ "\n");
-}
-
-fn print_horizontal_border(
-    widths: @as(type, std.ArrayListAligned(usize, null)),
-    stdout: anytype, // TODO: specify type
-    left: []const u8,
-    middle: []const u8,
-    right: []const u8,
-) !void {
-    try stdout.print("{s}", .{left});
-    for (widths.items, 0..) |width, i| {
-        if (i > 0) {
-            try stdout.writeAll(middle);
-        }
-        for (0..width) |_| {
-            try stdout.writeAll(middle);
-        }
-    }
-    try stdout.print("{s}\n", .{right});
 }
 
 // test "simple test" {
