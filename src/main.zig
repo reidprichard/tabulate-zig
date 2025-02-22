@@ -219,9 +219,9 @@ pub fn print_table(
         }
 
         // First vertical boundary of row
-        try stdout.writeAll(if (format.horizontal.get(.all)) |hborder| if_blk: {
-            const weight = hborder.weight;
-            const style = hborder.style;
+        try stdout.writeAll(if (format.vertical.get(.outer)) |vborder| if_blk: {
+            const weight = vborder.weight;
+            const style = vborder.style;
             switch (weight) {
                 .normal => break :if_blk VerticalLineNormal[@intFromEnum(style)],
                 .bold => break :if_blk VerticalLineNormal[@intFromEnum(style)],
@@ -256,7 +256,7 @@ pub fn print_table(
             // 1. Use outer if it exists
             // 2. Use first if it exists
             // 3. Use all if it exists
-            try stdout.writeAll(if (format.horizontal.get(if (i < field_widths.items.len - 1) .all else .outer)) |border| if_blk: {
+            try stdout.writeAll(if (format.vertical.get(if (i < field_widths.items.len - 1) .all else .outer)) |border| if_blk: {
                 const weight = border.weight;
                 const style = border.style;
                 switch (weight) {
@@ -269,6 +269,7 @@ pub fn print_table(
         }
         try stdout.writeAll("\n");
 
+        // Right side border
         if (row_num < row_count - 1) {
             if (format.horizontal.get(.all)) |_| {
                 try print_horizontal_border(
