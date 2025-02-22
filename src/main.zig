@@ -34,7 +34,7 @@ const LeftTee = [4]*const [3:0]u8{ "├", "┝", "┠", "┣" };
 const RightTee = [4]*const [3:0]u8{ "┤", "┥", "┨", "┫" };
 const TopTee = [4]*const [3:0]u8{ "┬", "┯", "┰", "┳" };
 const BottomTee = [4]*const [3:0]u8{ "┴", "┷", "┸", "┻" };
-const CornerWeights = enum(usize) {
+const CornerWeight = enum(usize) {
     normal,
     bold_horizontal,
     bold_vertical,
@@ -298,6 +298,18 @@ pub fn print_table(
     }
 }
 
+fn get_corner_weight(h_weight: BorderWeight, v_weight: BorderWeight) CornerWeight {
+    return if (h_weight == .bold and v_weight == .bold) both_bold: {
+        break :both_bold .bold;
+    } else if (h_weight == .bold) bold_horiz: {
+        break :bold_horiz .bold_horizontal;
+    } else if (v_weight == .bold) bold_vert: {
+        break :bold_vert .bold_vertical;
+    } else norm: {
+        break :norm .normal;
+    };
+}
+
 fn print_horizontal_border(
     widths: @as(type, std.ArrayListAligned(usize, null)),
     stdout: anytype, // TODO: specify type
@@ -311,15 +323,7 @@ fn print_horizontal_border(
 
     const left: *const [3:0]u8 = if (vertical.get(.outer)) |v_format| blk: {
         const v_weight = v_format.weight;
-        const corner_weight: CornerWeights = if (h_weight == .bold and v_weight == .bold) both_bold: {
-            break :both_bold .bold;
-        } else if (h_weight == .bold) bold_horiz: {
-            break :bold_horiz .bold_horizontal;
-        } else if (v_weight == .bold) bold_vert: {
-            break :bold_vert .bold_vertical;
-        } else norm: {
-            break :norm .normal;
-        };
+        const corner_weight: CornerWeight = get_corner_weight(h_weight, v_weight);
         const i = @intFromEnum(corner_weight);
         switch (location) {
             .top => break :blk TopLeft[i],
@@ -330,17 +334,29 @@ fn print_horizontal_border(
         break :horiz horiz[@intFromEnum(h_style)];
     };
 
+    const middle_weight = @intFromEnum(if (vertical.get(.all)) |v_format| blk: {
+        break :blk get_corner_weight(h_weight, v_format.weight);
+    } else .normal);
+
+    const middle = switch (location) {
+        .top => TopTee[middle_weight],
+        .middle => Cross[middle_weight],
+        .bottom => BottomTee[middle_weight],
+    };
+    const right = left;
+
     for (widths.items, 0..) |width, i| {
-        try stdout.print("{s}", .{if (i == 0) left: {
-            break :left left;
-        } else horiz: {
-            break :horiz horiz[@intFromEnum(h_style)];
-        }});
+        if (i == 0) {
+            try stdout.writeAll(left);
+        }
         for (0..width) |_| {
             try stdout.print("{s}", .{horiz[@intFromEnum(h_style)]});
         }
+        if (i < widths.items.len - 1) {
+            try stdout.writeAll(middle);
+        }
     }
-    try stdout.writeAll(left ++ "\n");
+    try stdout.writeAll(right ++ "\n");
 }
 
 // test "simple test" {
