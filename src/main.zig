@@ -321,17 +321,25 @@ fn print_horizontal_border(
     const h_style = horiz_format.style;
     const horiz = (if (h_weight == .normal) HorizontalLineNormal else HorizontalLineBold);
 
-    const left: *const [3:0]u8 = if (vertical.get(.outer)) |v_format| blk: {
-        const v_weight = v_format.weight;
-        const corner_weight: CornerWeight = get_corner_weight(h_weight, v_weight);
-        const i = @intFromEnum(corner_weight);
+    const left: *const [3:0]u8 = if (vertical.get(.outer)) |v_format| corner: {
+        const corner_weight: usize = @intFromEnum(get_corner_weight(h_weight, v_format.weight));
         switch (location) {
-            .top => break :blk TopLeft[i],
-            .middle => break :blk LeftTee[i],
-            .bottom => break :blk BottomLeft[i],
+            .top => break :corner TopLeft[corner_weight],
+            .middle => break :corner LeftTee[corner_weight],
+            .bottom => break :corner BottomLeft[corner_weight],
         }
-    } else horiz: {
-        break :horiz horiz[@intFromEnum(h_style)];
+    } else straight: {
+        break :straight horiz[@intFromEnum(h_style)];
+    };
+    const right: *const [3:0]u8 = if (vertical.get(.outer)) |v_format| corner: {
+        const corner_weight: usize = @intFromEnum(get_corner_weight(h_weight, v_format.weight));
+        switch (location) {
+            .top => break :corner TopRight[corner_weight],
+            .middle => break :corner RightTee[corner_weight],
+            .bottom => break :corner BottomRight[corner_weight],
+        }
+    } else straight: {
+        break :straight horiz[@intFromEnum(h_style)];
     };
 
     const middle_weight = @intFromEnum(if (vertical.get(.all)) |v_format| blk: {
@@ -343,7 +351,6 @@ fn print_horizontal_border(
         .middle => Cross[middle_weight],
         .bottom => BottomTee[middle_weight],
     };
-    const right = left;
 
     for (widths.items, 0..) |width, i| {
         if (i == 0) {
