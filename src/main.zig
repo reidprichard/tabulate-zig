@@ -112,6 +112,7 @@ pub fn main() !void {
     try row_borders.put(.outer, BorderFmt{ .weight = .bold, .style = .solid });
     try row_borders.put(.all, BorderFmt{ .weight = .normal, .style = .dash2 });
     var col_borders = std.AutoHashMap(BorderType, BorderFmt).init(allocator);
+    try col_borders.put(.outer, BorderFmt{ .weight = .bold, .style = .solid });
     try col_borders.put(.all, BorderFmt{ .weight = .normal, .style = .solid });
 
     row_delimiter[0] = '\n';
@@ -199,6 +200,7 @@ pub fn print_table(
         row_count += 1;
     }
 
+    // Top horizontal border
     if (format.horizontal.get(.outer)) |top_hborder| {
         try print_horizontal_border(
             field_widths,
@@ -223,7 +225,7 @@ pub fn print_table(
             const style = vborder.style;
             switch (weight) {
                 .normal => break :if_blk VerticalLineNormal[@intFromEnum(style)],
-                .bold => break :if_blk VerticalLineNormal[@intFromEnum(style)],
+                .bold => break :if_blk VerticalLineBold[@intFromEnum(style)],
             }
         } else else_blk: {
             // two null bytes to match slice sice of box drawing chars
@@ -268,8 +270,9 @@ pub fn print_table(
         }
         try stdout.writeAll("\n");
 
-        // Right side border
+        // Horizontal border between rows
         if (row_num < row_count - 1) {
+            // TODO: first
             if (format.horizontal.get(.all)) |middle_hborder| {
                 try print_horizontal_border(
                     field_widths,
@@ -283,7 +286,7 @@ pub fn print_table(
         row_num += 1;
     }
 
-    // Bottom border - could this be abstracted with comptime?
+    // Bottom horizontal border
     if (format.horizontal.get(.outer)) |bottom_hborder| {
         try print_horizontal_border(
             field_widths,
@@ -304,7 +307,6 @@ fn print_horizontal_border(
 ) !void {
     const h_weight = horiz_format.weight;
     const h_style = horiz_format.style;
-
     const horiz = (if (h_weight == .normal) HorizontalLineNormal else HorizontalLineBold);
 
     const left: *const [3:0]u8 = if (vertical.get(.outer)) |v_format| blk: {
