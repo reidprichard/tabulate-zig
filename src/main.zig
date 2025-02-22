@@ -24,31 +24,32 @@ const VerticalLineBold = [4]*const [3:0]u8{ "┃", "╏", "┇", "┋" };
 
 const CornerNormal = [4]*const [3:0]u8{ "┌", "┐", "└", "┘" };
 const CornerBold = [4]*const [3:0]u8{ "┏", "┓", "┗", "┛" };
-// ┌  ┍  ┎  ┏
-//
-// ┐  ┑  ┒  ┓
-//
-// └  ┕  ┖  ┗
-//
-// ┘  ┙  ┚  ┛
-//
-// ├  ┝  ┠  ┣
-//
-// ┤  ┥  ┨  ┫
-//
-// ┬  ┯  ┰  ┳
-//
-// ┴  ┷  ┸  ┻
-//
-// ┼  ┽  ┿  ╂  ╋
+
+const TopLeft = [4]*const [3:0]u8{ "┌", "┍", "┎", "┏" };
+const TopRight = [4]*const [3:0]u8{ "┐", "┑", "┒", "┓" };
+const BottomLeft = [4]*const [3:0]u8{ "└", "┕", "┖", "┗" };
+const BottomRight = [4]*const [3:0]u8{ "┘", "┙", "┚", "┛" };
+
+const LeftTee = [4]*const [3:0]u8{ "├", "┝", "┠", "┣" };
+const RightTee = [4]*const [3:0]u8{ "┤", "┥", "┨", "┫" };
+const TopTee = [4]*const [3:0]u8{ "┬", "┯", "┰", "┳" };
+const BottomTee = [4]*const [3:0]u8{ "┴", "┷", "┸", "┻" };
+const CornerWeights = enum(usize) {
+    normal,
+    bold_horizontal,
+    bold_vertical,
+    bold,
+};
+
+const Cross = [5]*const [3:0]u8{ "┼", "┽", "┿", "╂", "╋" };
 
 // ─  ━  │  ┃  ┄  ┅  ┆  ┇  ┈  ┉  ┊  ┋  ╌  ╍  ╎  ╏  ═  ║  ┌  ┍  ┎  ┏  ┐  ┑  ┒  ┓  └  ┕  ┖  ┗  ┘  ┙  ┚  ┛  ├  ┝  ┠  ┣  ┤  ┥  ┨  ┫  ┬  ┯  ┰  ┳  ┴  ┷  ┸  ┻  ┼  ┽  ┿  ╂  ╋  ╒  ╓  ╔  ╕  ╖  ╗  ╘  ╙  ╚  ╛  ╜  ╝  ╞  ╟  ╠  ╡  ╢  ╣  ╤  ╥  ╦  ╧  ╨  ╩  ╪  ╫  ╬  ╭  ╮  ╯ ╰
-const CornerTypes = enum {
-    top_left,
-    top_right,
-    bottom_left,
-    bottom_right,
-};
+// const CornerTypes = enum {
+//     top_left,
+//     top_right,
+//     bottom_left,
+//     bottom_right,
+// };
 
 const TopDelimiters = enum(*const [:0]u8) {
     // left = "A",
@@ -197,16 +198,12 @@ pub fn print_table(
         row_count += 1;
     }
 
-    // Top border - could this be abstracted with comptime?
     if (format.horizontal.get(.outer)) |outer_hborder| {
-        const style = outer_hborder.style;
-        const weight = outer_hborder.weight;
-        try print_horizontal_border(
+        try print_horizontal_border_new(
             field_widths,
             stdout,
-            CornerNormal[@intFromEnum(Corner.top_left)],
-            (if (weight == .normal) HorizontalLineNormal else HorizontalLineBold)[@intFromEnum(style)],
-            CornerNormal[@intFromEnum(Corner.top_right)],
+            outer_hborder,
+            format.vertical,
         );
     }
 
@@ -298,20 +295,72 @@ pub fn print_table(
     }
 }
 
+const BorderLoc = enum { top, middle, bottom };
+
+fn print_horizontal_border_new(
+    widths: @as(type, std.ArrayListAligned(usize, null)),
+    stdout: anytype, // TODO: specify type
+    horiz_format: BorderFmt,
+    vertical: std.AutoHashMap(BorderPos, BorderFmt),
+    // location: BorderLoc
+) !void {
+
+    // If no vertical border:
+    //  If bold, bold horizontal line, else normal horizontal line
+    // Else:
+    //  Set CornerWeights
+    //  If top, top corner[cornerweights]
+    //  If middle, tee[cornerweights]
+    //  If bottom, bottom cornercornerweights]
+    const h_weight = horiz_format.weight;
+
+    const left: *const [3:0]u8 = if (vertical.get(.outer)) |v_format| blk: {
+        const v_weight = v_format.weight;
+        const corner_weight: CornerWeights = if (h_weight == .bold and v_weight == .bold) both_bold: {
+            break :both_bold .bold;
+        } else if (h_weight == .bold) bold_horiz: {
+            break :bold_horiz .bold_horizontal;
+        } else if (v_weight == .bold) bold_vert: {
+            break :bold_vert .bold_vertical;
+        } else norm: {
+            break :norm .normal;
+        };
+        break :blk TopLeft[@intFromEnum(corner_weight)];
+    } else horiz: {
+        break :horiz HorizontalLineNormal[@intFromEnum(h_weight)];
+    };
+
+    for (widths.items, 0..) |width, i| {
+        try stdout.print("{s}", .{if (i == 0) left: {
+            break :left left;
+        } else if (i == widths.items.len - 1) right: {
+            break :right left;
+        } else horiz: {
+            break :horiz HorizontalLineNormal[@intFromEnum(h_weight)];
+        }});
+        for (0..width) |_| {
+            try stdout.print("{s}", .{HorizontalLineNormal[@intFromEnum(h_weight)]});
+        }
+    }
+}
+
 fn print_horizontal_border(
     widths: @as(type, std.ArrayListAligned(usize, null)),
-    out: anytype, // TODO: specify type
+    stdout: anytype, // TODO: specify type
     left: []const u8,
     middle: []const u8,
     right: []const u8,
 ) !void {
+    try stdout.print("{s}", .{left});
     for (widths.items, 0..) |width, i| {
-        try out.writeAll(if (i == 0) left else middle);
+        if (i > 0) {
+            try stdout.writeAll(middle);
+        }
         for (0..width) |_| {
-            try out.writeAll(middle);
+            try stdout.writeAll(middle);
         }
     }
-    try out.print("{s}\n", .{right});
+    try stdout.print("{s}\n", .{right});
 }
 
 // test "simple test" {
