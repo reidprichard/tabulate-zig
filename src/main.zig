@@ -2,20 +2,6 @@ const std = @import("std");
 
 const GiB: u32 = std.math.pow(u32, 1024, 3);
 
-const Straight = enum(usize) {
-    solid,
-    dash2,
-    dash3,
-    dash4,
-};
-
-const Corner = enum(usize) {
-    top_left,
-    top_right,
-    bottom_left,
-    bottom_right,
-};
-
 const HorizontalLineNormal = [4]*const [3:0]u8{ "─", "╌", "┄", "┈" };
 const HorizontalLineBold = [4]*const [3:0]u8{ "━", "╍", "┅", "┉" };
 const VerticalLineNormal = [4]*const [3:0]u8{ "│", "╎", "┆", "┊" };
@@ -33,6 +19,13 @@ const BottomTee = [4]*const [3:0]u8{ "┴", "┷", "┸", "┻" };
 
 const Cross = [4]*const [3:0]u8{ "┼", "┿", "╂", "╋" };
 
+const Straight = enum(usize) {
+    solid,
+    dash2,
+    dash3,
+    dash4,
+};
+
 const CornerWeight = enum(usize) {
     normal,
     bold_horizontal,
@@ -40,16 +33,12 @@ const CornerWeight = enum(usize) {
     bold,
 };
 
-// ─  ━  │  ┃  ┄  ┅  ┆  ┇  ┈  ┉  ┊  ┋  ╌  ╍  ╎  ╏  ═  ║  ┌  ┍  ┎  ┏  ┐  ┑  ┒  ┓  └  ┕  ┖  ┗  ┘  ┙  ┚  ┛  ├  ┝  ┠  ┣  ┤  ┥  ┨  ┫  ┬  ┯  ┰  ┳  ┴  ┷  ┸  ┻  ┼  ┽  ┿  ╂  ╋  ╒  ╓  ╔  ╕  ╖  ╗  ╘  ╙  ╚  ╛  ╜  ╝  ╞  ╟  ╠  ╡  ╢  ╣  ╤  ╥  ╦  ╧  ╨  ╩  ╪  ╫  ╬  ╭  ╮  ╯ ╰
-
 const BorderPos = enum { top, first, middle, bottom };
 const BorderType = enum { outer, first, inner };
 const BorderWeight = enum { normal, bold };
-const BorderStyle = enum { solid, dash2, dash3, dash4 };
-
 const BorderFmt = struct {
     weight: BorderWeight,
-    style: BorderStyle,
+    style: enum { solid, dash2, dash3, dash4 },
 };
 
 const TableFormat = struct {
@@ -73,11 +62,13 @@ pub fn main() !void {
     var col_delimiter = [_]u8{0} ** MAX_DELIM_LEN;
 
     var row_borders = std.AutoHashMap(BorderType, BorderFmt).init(allocator);
+    defer row_borders.deinit();
     try row_borders.put(.outer, BorderFmt{ .weight = .bold, .style = .solid });
     try row_borders.put(.first, BorderFmt{ .weight = .bold, .style = .solid });
     try row_borders.put(.inner, BorderFmt{ .weight = .normal, .style = .dash2 });
 
     var col_borders = std.AutoHashMap(BorderType, BorderFmt).init(allocator);
+    defer col_borders.deinit();
     try col_borders.put(.first, BorderFmt{ .weight = .bold, .style = .dash4 });
     try col_borders.put(.outer, BorderFmt{ .weight = .bold, .style = .solid });
     try col_borders.put(.inner, BorderFmt{ .weight = .normal, .style = .solid });
