@@ -43,7 +43,7 @@ const CornerWeight = enum(usize) {
 // ─  ━  │  ┃  ┄  ┅  ┆  ┇  ┈  ┉  ┊  ┋  ╌  ╍  ╎  ╏  ═  ║  ┌  ┍  ┎  ┏  ┐  ┑  ┒  ┓  └  ┕  ┖  ┗  ┘  ┙  ┚  ┛  ├  ┝  ┠  ┣  ┤  ┥  ┨  ┫  ┬  ┯  ┰  ┳  ┴  ┷  ┸  ┻  ┼  ┽  ┿  ╂  ╋  ╒  ╓  ╔  ╕  ╖  ╗  ╘  ╙  ╚  ╛  ╜  ╝  ╞  ╟  ╠  ╡  ╢  ╣  ╤  ╥  ╦  ╧  ╨  ╩  ╪  ╫  ╬  ╭  ╮  ╯ ╰
 
 const BorderPos = enum { top, first, middle, bottom };
-const BorderType = enum { outer, first, all };
+const BorderType = enum { outer, first, inner };
 const BorderWeight = enum { normal, bold };
 const BorderStyle = enum { solid, dash2, dash3, dash4 };
 
@@ -75,12 +75,12 @@ pub fn main() !void {
     var row_borders = std.AutoHashMap(BorderType, BorderFmt).init(allocator);
     try row_borders.put(.outer, BorderFmt{ .weight = .bold, .style = .solid });
     try row_borders.put(.first, BorderFmt{ .weight = .bold, .style = .solid });
-    try row_borders.put(.all, BorderFmt{ .weight = .normal, .style = .dash2 });
+    try row_borders.put(.inner, BorderFmt{ .weight = .normal, .style = .dash2 });
 
     var col_borders = std.AutoHashMap(BorderType, BorderFmt).init(allocator);
     try col_borders.put(.first, BorderFmt{ .weight = .bold, .style = .dash4 });
     try col_borders.put(.outer, BorderFmt{ .weight = .bold, .style = .solid });
-    try col_borders.put(.all, BorderFmt{ .weight = .normal, .style = .solid });
+    try col_borders.put(.inner, BorderFmt{ .weight = .normal, .style = .solid });
 
     row_delimiter[0] = '\n';
     col_delimiter[0] = ' ';
@@ -232,7 +232,7 @@ pub fn print_table(
                 });
             } else {
                 // Print vertical field separator
-                try stdout.writeAll(if (format.vertical.get(if (i < field_widths.items.len - 1) .all else .outer)) |border| if_blk: {
+                try stdout.writeAll(if (format.vertical.get(if (i < field_widths.items.len - 1) .inner else .outer)) |border| if_blk: {
                     const weight = border.weight;
                     const style = border.style;
                     switch (weight) {
@@ -257,7 +257,7 @@ pub fn print_table(
                     format.vertical,
                     .first,
                 );
-            } else if (format.horizontal.get(.all)) |middle_hborder| {
+            } else if (format.horizontal.get(.inner)) |middle_hborder| {
                 try print_horizontal_border(
                     field_widths,
                     stdout,
@@ -329,7 +329,7 @@ fn print_horizontal_border(
         break :straight horiz[@intFromEnum(h_style)];
     };
 
-    const middle_weight = @intFromEnum(if (vertical.get(.all)) |v_format| blk: {
+    const middle_weight = @intFromEnum(if (vertical.get(.inner)) |v_format| blk: {
         break :blk get_corner_weight(h_weight, v_format.weight);
     } else .normal);
 
