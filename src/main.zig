@@ -18,12 +18,8 @@ const Corner = enum(usize) {
 
 const HorizontalLineNormal = [4]*const [3:0]u8{ "─", "╌", "┄", "┈" };
 const HorizontalLineBold = [4]*const [3:0]u8{ "━", "╍", "┅", "┉" };
-
 const VerticalLineNormal = [4]*const [3:0]u8{ "│", "╎", "┆", "┊" };
 const VerticalLineBold = [4]*const [3:0]u8{ "┃", "╏", "┇", "┋" };
-
-const CornerNormal = [4]*const [3:0]u8{ "┌", "┐", "└", "┘" };
-const CornerBold = [4]*const [3:0]u8{ "┏", "┓", "┗", "┛" };
 
 const TopLeft = [4]*const [3:0]u8{ "┌", "┍", "┎", "┏" };
 const TopRight = [4]*const [3:0]u8{ "┐", "┑", "┒", "┓" };
@@ -34,6 +30,7 @@ const LeftTee = [4]*const [3:0]u8{ "├", "┝", "┠", "┣" };
 const RightTee = [4]*const [3:0]u8{ "┤", "┥", "┨", "┫" };
 const TopTee = [4]*const [3:0]u8{ "┬", "┯", "┰", "┳" };
 const BottomTee = [4]*const [3:0]u8{ "┴", "┷", "┸", "┻" };
+
 const Cross = [4]*const [3:0]u8{ "┼", "┿", "╂", "╋" };
 
 const CornerWeight = enum(usize) {
