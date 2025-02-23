@@ -45,7 +45,7 @@ const CornerWeight = enum(usize) {
 
 // ─  ━  │  ┃  ┄  ┅  ┆  ┇  ┈  ┉  ┊  ┋  ╌  ╍  ╎  ╏  ═  ║  ┌  ┍  ┎  ┏  ┐  ┑  ┒  ┓  └  ┕  ┖  ┗  ┘  ┙  ┚  ┛  ├  ┝  ┠  ┣  ┤  ┥  ┨  ┫  ┬  ┯  ┰  ┳  ┴  ┷  ┸  ┻  ┼  ┽  ┿  ╂  ╋  ╒  ╓  ╔  ╕  ╖  ╗  ╘  ╙  ╚  ╛  ╜  ╝  ╞  ╟  ╠  ╡  ╢  ╣  ╤  ╥  ╦  ╧  ╨  ╩  ╪  ╫  ╬  ╭  ╮  ╯ ╰
 
-const BorderPos = enum { top, middle, bottom };
+const BorderPos = enum { top, first, middle, bottom };
 const BorderType = enum { outer, first, all };
 const BorderWeight = enum { normal, bold };
 const BorderStyle = enum { solid, dash2, dash3, dash4 };
@@ -77,10 +77,11 @@ pub fn main() !void {
 
     var row_borders = std.AutoHashMap(BorderType, BorderFmt).init(allocator);
     try row_borders.put(.outer, BorderFmt{ .weight = .bold, .style = .solid });
-    try row_borders.put(.first, BorderFmt{ .weight = .normal, .style = .solid });
+    try row_borders.put(.first, BorderFmt{ .weight = .bold, .style = .solid });
     try row_borders.put(.all, BorderFmt{ .weight = .normal, .style = .dash2 });
 
     var col_borders = std.AutoHashMap(BorderType, BorderFmt).init(allocator);
+    try col_borders.put(.first, BorderFmt{ .weight = .bold, .style = .dash4 });
     try col_borders.put(.outer, BorderFmt{ .weight = .bold, .style = .solid });
     try col_borders.put(.all, BorderFmt{ .weight = .normal, .style = .solid });
 
@@ -224,17 +225,27 @@ pub fn print_table(
                 try stdout.writeAll("\x1b[0m");
             }
 
-            // Print vertical field separator
-            try stdout.writeAll(if (format.vertical.get(if (i < field_widths.items.len - 1) .all else .outer)) |border| if_blk: {
+            if (i == 0 and format.vertical.contains(.first)) {
+                const border = format.vertical.get(.first).?;
                 const weight = border.weight;
                 const style = border.style;
-                switch (weight) {
-                    .normal => break :if_blk VerticalLineNormal[@intFromEnum(style)],
-                    .bold => break :if_blk VerticalLineBold[@intFromEnum(style)],
-                }
-            } else else_blk: {
-                break :else_blk " \x00\x00";
-            });
+                try stdout.writeAll(switch (weight) {
+                    .normal => VerticalLineNormal[@intFromEnum(style)],
+                    .bold => VerticalLineBold[@intFromEnum(style)],
+                });
+            } else {
+                // Print vertical field separator
+                try stdout.writeAll(if (format.vertical.get(if (i < field_widths.items.len - 1) .all else .outer)) |border| if_blk: {
+                    const weight = border.weight;
+                    const style = border.style;
+                    switch (weight) {
+                        .normal => break :if_blk VerticalLineNormal[@intFromEnum(style)],
+                        .bold => break :if_blk VerticalLineBold[@intFromEnum(style)],
+                    }
+                } else else_blk: {
+                    break :else_blk " \x00\x00";
+                });
+            }
         }
         try stdout.writeAll("\n");
 
@@ -247,7 +258,7 @@ pub fn print_table(
                     stdout,
                     format.horizontal.get(.first).?,
                     format.vertical,
-                    .middle,
+                    .first,
                 );
             } else if (format.horizontal.get(.all)) |middle_hborder| {
                 try print_horizontal_border(
@@ -302,6 +313,7 @@ fn print_horizontal_border(
         const corner_weight: usize = @intFromEnum(get_corner_weight(h_weight, v_format.weight));
         switch (location) {
             .top => break :corner TopLeft[corner_weight],
+            .first => break :corner LeftTee[corner_weight],
             .middle => break :corner LeftTee[corner_weight],
             .bottom => break :corner BottomLeft[corner_weight],
         }
@@ -312,6 +324,7 @@ fn print_horizontal_border(
         const corner_weight: usize = @intFromEnum(get_corner_weight(h_weight, v_format.weight));
         switch (location) {
             .top => break :corner TopRight[corner_weight],
+            .first => break :corner RightTee[corner_weight],
             .middle => break :corner RightTee[corner_weight],
             .bottom => break :corner BottomRight[corner_weight],
         }
@@ -323,10 +336,22 @@ fn print_horizontal_border(
         break :blk get_corner_weight(h_weight, v_format.weight);
     } else .normal);
 
+    const first_weight = if (vertical.get(.first)) |v_format| blk: {
+        break :blk @intFromEnum(get_corner_weight(h_weight, v_format.weight));
+    } else middle_weight;
+
     const middle = switch (location) {
         .top => TopTee[middle_weight],
+        .first => Cross[middle_weight],
         .middle => Cross[middle_weight],
         .bottom => BottomTee[middle_weight],
+    };
+
+    const first = switch (location) {
+        .top => TopTee[first_weight],
+        .first => Cross[first_weight],
+        .middle => Cross[first_weight],
+        .bottom => BottomTee[first_weight],
     };
 
     for (widths.items, 0..) |width, i| {
@@ -337,7 +362,11 @@ fn print_horizontal_border(
             try stdout.print("{s}", .{horiz[@intFromEnum(h_style)]});
         }
         if (i < widths.items.len - 1) {
-            try stdout.writeAll(middle);
+            if (i == 0) {
+                try stdout.writeAll(first);
+            } else {
+                try stdout.writeAll(middle);
+            }
         }
     }
     try stdout.writeAll(right ++ "\n");
