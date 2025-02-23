@@ -34,14 +34,14 @@ const LeftTee = [4]*const [3:0]u8{ "├", "┝", "┠", "┣" };
 const RightTee = [4]*const [3:0]u8{ "┤", "┥", "┨", "┫" };
 const TopTee = [4]*const [3:0]u8{ "┬", "┯", "┰", "┳" };
 const BottomTee = [4]*const [3:0]u8{ "┴", "┷", "┸", "┻" };
+const Cross = [4]*const [3:0]u8{ "┼", "┿", "╂", "╋" };
+
 const CornerWeight = enum(usize) {
     normal,
     bold_horizontal,
     bold_vertical,
     bold,
 };
-
-const Cross = [5]*const [3:0]u8{ "┼", "┽", "┿", "╂", "╋" };
 
 // ─  ━  │  ┃  ┄  ┅  ┆  ┇  ┈  ┉  ┊  ┋  ╌  ╍  ╎  ╏  ═  ║  ┌  ┍  ┎  ┏  ┐  ┑  ┒  ┓  └  ┕  ┖  ┗  ┘  ┙  ┚  ┛  ├  ┝  ┠  ┣  ┤  ┥  ┨  ┫  ┬  ┯  ┰  ┳  ┴  ┷  ┸  ┻  ┼  ┽  ┿  ╂  ╋  ╒  ╓  ╔  ╕  ╖  ╗  ╘  ╙  ╚  ╛  ╜  ╝  ╞  ╟  ╠  ╡  ╢  ╣  ╤  ╥  ╦  ╧  ╨  ╩  ╪  ╫  ╬  ╭  ╮  ╯ ╰
 // const CornerTypes = enum {
@@ -110,7 +110,8 @@ pub fn main() !void {
 
     var row_borders = std.AutoHashMap(BorderType, BorderFmt).init(allocator);
     try row_borders.put(.outer, BorderFmt{ .weight = .bold, .style = .solid });
-    try row_borders.put(.all, BorderFmt{ .weight = .normal, .style = .dash2 });
+    try row_borders.put(.all, BorderFmt{ .weight = .normal, .style = .solid });
+
     var col_borders = std.AutoHashMap(BorderType, BorderFmt).init(allocator);
     try col_borders.put(.outer, BorderFmt{ .weight = .bold, .style = .solid });
     try col_borders.put(.all, BorderFmt{ .weight = .normal, .style = .solid });
@@ -228,7 +229,7 @@ pub fn print_table(
                 .bold => break :if_blk VerticalLineBold[@intFromEnum(style)],
             }
         } else else_blk: {
-            // two null bytes to match slice sice of box drawing chars
+            // two null bytes to match len of box drawing chars
             break :else_blk " \x00\x00";
         });
 
