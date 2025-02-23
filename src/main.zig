@@ -49,7 +49,7 @@ const TableFormat = struct {
     vertical: std.AutoHashMap(BorderType, BorderFmt),
 };
 
-pub fn main() !void {
+pub fn main() !u8 {
     // const allocator: std.mem.Allocator = std.heap.page_allocator;
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator: std.mem.Allocator = gpa.allocator();
@@ -90,6 +90,8 @@ pub fn main() !void {
     var bw = std.io.bufferedWriter(stdout_file);
     const stdout = bw.writer();
 
+    const stderr = std.io.getStdErr().writer();
+
     while (args.next()) |arg| {
         try stdout.print("{s}\n", .{arg});
         if (arg.len < 2) {
@@ -99,7 +101,7 @@ pub fn main() !void {
             const value = args.next().?;
             if (value.len > MAX_DELIM_LEN) {
                 std.debug.print("{s}\n", .{"ERROR"});
-                return;
+                return 1;
             }
             std.mem.copyForwards(u8, &row_delimiter, value);
             // row_delimiter = args.next().?;
@@ -112,6 +114,10 @@ pub fn main() !void {
     const stdin = std.io.getStdIn().reader();
     const input = try stdin.readAllAlloc(allocator, GiB);
     defer allocator.free(input);
+    if (input.len <= 1) {
+        try stderr.writeAll("Error: no input given.\n");
+        return 1;
+    }
 
     const zero = [_]u8{0};
     format.row_delimiter = row_delimiter[0..std.mem.indexOf(u8, &row_delimiter, &zero).?];
@@ -120,10 +126,12 @@ pub fn main() !void {
     try print_table(
         allocator,
         stdout,
-        input,
+        input[0 .. input.len - 1],
         format,
     );
     try bw.flush();
+
+    return 0;
 }
 
 pub fn print_table(
@@ -132,22 +140,20 @@ pub fn print_table(
     input: []const u8,
     format: TableFormat,
 ) !void {
-    // If a field has more than 4_294_967_295 chars I've got bigger problems
+    // Technically this could be smaller but it shouldn't really matter
     var field_widths = std.ArrayList(usize).init(allocator);
     defer field_widths.deinit();
     var row_count: usize = 0;
 
     // Iterate over input to get field widths
-    var row_iter = std.mem.split(u8, input, format.row_delimiter);
+    var row_iter = std.mem.splitSequence(u8, input, format.row_delimiter);
     while (row_iter.next()) |row| {
-        if (row.len == 0) {
-            break; // to handle trailing newline
-        }
         var col_iter = std.mem.split(u8, row, format.col_delimiter);
         var col_num: u32 = 0;
         // Surely this isn't the right way to do this...?
         while (col_iter.next()) |entry| {
             const len = entry.len;
+            // Could make this branchless
             if (col_num == field_widths.items.len) {
                 try field_widths.append(len);
             } else {
@@ -173,10 +179,6 @@ pub fn print_table(
     var row_num: usize = 0;
     row_iter.reset();
     while (row_iter.next()) |row| {
-        if (row.len == 0) {
-            break; // to handle trailing newline
-        }
-
         // First vertical boundary of row
         try stdout.writeAll(if (format.vertical.get(.outer)) |vborder| if_blk: {
             const weight = vborder.weight;
