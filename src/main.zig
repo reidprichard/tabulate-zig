@@ -44,39 +44,6 @@ const CornerWeight = enum(usize) {
 };
 
 // ─  ━  │  ┃  ┄  ┅  ┆  ┇  ┈  ┉  ┊  ┋  ╌  ╍  ╎  ╏  ═  ║  ┌  ┍  ┎  ┏  ┐  ┑  ┒  ┓  └  ┕  ┖  ┗  ┘  ┙  ┚  ┛  ├  ┝  ┠  ┣  ┤  ┥  ┨  ┫  ┬  ┯  ┰  ┳  ┴  ┷  ┸  ┻  ┼  ┽  ┿  ╂  ╋  ╒  ╓  ╔  ╕  ╖  ╗  ╘  ╙  ╚  ╛  ╜  ╝  ╞  ╟  ╠  ╡  ╢  ╣  ╤  ╥  ╦  ╧  ╨  ╩  ╪  ╫  ╬  ╭  ╮  ╯ ╰
-// const CornerTypes = enum {
-//     top_left,
-//     top_right,
-//     bottom_left,
-//     bottom_right,
-// };
-
-const TopDelimiters = enum(*const [:0]u8) {
-    // left = "A",
-    // right = "B",
-    // c = "asdfads",
-};
-
-// const Delimiters = enum(enum(u8)) {
-//     top,
-//     bottom,
-// };
-
-const top_left = "┌";
-const top_right = "┐";
-const bottom_left = "└";
-const bottom_right = "┘";
-const top_left_rounded = "╭";
-const top_right_rounded = "╮";
-const bottom_left_rounded = "╰";
-const bottom_right_rounded = "╯";
-
-const right_tee = "┤";
-const left_tee = "├";
-const bottom_tee = "┴";
-const top_tee = "┬";
-
-const cross = "┼";
 
 const BorderPos = enum { top, middle, bottom };
 const BorderType = enum { outer, first, all };
@@ -110,7 +77,8 @@ pub fn main() !void {
 
     var row_borders = std.AutoHashMap(BorderType, BorderFmt).init(allocator);
     try row_borders.put(.outer, BorderFmt{ .weight = .bold, .style = .solid });
-    try row_borders.put(.all, BorderFmt{ .weight = .normal, .style = .solid });
+    try row_borders.put(.first, BorderFmt{ .weight = .normal, .style = .solid });
+    try row_borders.put(.all, BorderFmt{ .weight = .normal, .style = .dash2 });
 
     var col_borders = std.AutoHashMap(BorderType, BorderFmt).init(allocator);
     try col_borders.put(.outer, BorderFmt{ .weight = .bold, .style = .solid });
@@ -273,7 +241,15 @@ pub fn print_table(
         // Horizontal border between rows
         if (row_num < row_count - 1) {
             // TODO: first
-            if (format.horizontal.get(.all)) |middle_hborder| {
+            if (row_num == 0 and format.horizontal.contains(.first)) {
+                try print_horizontal_border(
+                    field_widths,
+                    stdout,
+                    format.horizontal.get(.first).?,
+                    format.vertical,
+                    .middle,
+                );
+            } else if (format.horizontal.get(.all)) |middle_hborder| {
                 try print_horizontal_border(
                     field_widths,
                     stdout,
