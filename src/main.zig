@@ -215,7 +215,7 @@ pub fn print_table(
                 try stdout.writeAll("\x1b[0m");
             }
 
-            if (i == 0 and format.vertical.contains(.first)) {
+            if (i == 0 and field_widths.items.len > 1 and format.vertical.contains(.first)) {
                 const border = format.vertical.get(.first).?;
                 const weight = border.weight;
                 const style = border.style;
@@ -232,9 +232,7 @@ pub fn print_table(
                         .normal => break :if_blk VerticalLineNormal[@intFromEnum(style)],
                         .bold => break :if_blk VerticalLineBold[@intFromEnum(style)],
                     }
-                } else else_blk: {
-                    break :else_blk " \x00\x00";
-                });
+                } else " ");
             }
         }
         try stdout.writeAll("\n");
@@ -361,14 +359,3 @@ fn print_horizontal_border(
     }
     try stdout.writeAll(right ++ "\n");
 }
-
-// test "simple test" {
-//     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-//     const allocator: std.mem.Allocator = gpa.allocator();
-//     const cwd = std.fs.cwd();
-//     const input = try cwd.readFileAlloc(allocator, "test/1.txt", 1024 * 1024 * 1024);
-//     defer allocator.free(input);
-//
-//     try print_table(allocator, input, " ", "\n");
-//     try std.testing.expect(true);
-// }
