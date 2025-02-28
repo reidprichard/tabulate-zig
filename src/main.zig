@@ -69,9 +69,9 @@ pub fn main() !u8 {
 
     var col_borders = std.AutoHashMap(BorderType, BorderFmt).init(allocator);
     defer col_borders.deinit();
-    try col_borders.put(.first, BorderFmt{ .weight = .bold, .style = .dash4 });
     try col_borders.put(.outer, BorderFmt{ .weight = .bold, .style = .solid });
-    try col_borders.put(.inner, BorderFmt{ .weight = .normal, .style = .solid });
+    // try col_borders.put(.first, BorderFmt{ .weight = .bold, .style = .dash4 });
+    // try col_borders.put(.inner, BorderFmt{ .weight = .normal, .style = .solid });
 
     row_delimiter[0] = '\n';
     col_delimiter[0] = ' ';
@@ -320,27 +320,36 @@ fn print_horizontal_border(
         break :straight horiz[@intFromEnum(h_style)];
     };
 
-    const middle_weight = @intFromEnum(if (vertical.get(.inner)) |v_format| blk: {
-        break :blk get_corner_weight(h_weight, v_format.weight);
-    } else .normal);
+    const middle_weight = if (vertical.get(.inner)) |v_format| blk: {
+        break :blk @intFromEnum(get_corner_weight(h_weight, v_format.weight));
+    } else null;
 
     const first_weight = if (vertical.get(.first)) |v_format| blk: {
         break :blk @intFromEnum(get_corner_weight(h_weight, v_format.weight));
     } else middle_weight;
 
-    const middle = switch (location) {
-        .top => TopTee[middle_weight],
-        .first => Cross[middle_weight],
-        .middle => Cross[middle_weight],
-        .bottom => BottomTee[middle_weight],
+    const middle = if (middle_weight) |middle| blk: {
+        break :blk switch (location) {
+            .top => TopTee[middle],
+            .first => Cross[middle],
+            .middle => Cross[middle],
+            .bottom => BottomTee[middle],
+        };
+    } else blk: {
+        break :blk switch (h_weight) {
+            .normal => HorizontalLineNormal[@intFromEnum(h_style)],
+            .bold => HorizontalLineBold[@intFromEnum(h_style)],
+        };
     };
 
-    const first = switch (location) {
-        .top => TopTee[first_weight],
-        .first => Cross[first_weight],
-        .middle => Cross[first_weight],
-        .bottom => BottomTee[first_weight],
-    };
+    const first = if (first_weight) |first| blk: {
+        break :blk switch (location) {
+            .top => TopTee[first],
+            .first => Cross[first],
+            .middle => Cross[first],
+            .bottom => BottomTee[first],
+        };
+    } else middle;
 
     for (widths.items, 0..) |width, i| {
         if (i == 0) {
