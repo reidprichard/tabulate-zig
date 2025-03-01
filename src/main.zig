@@ -1,10 +1,17 @@
 const std = @import("std");
 
+const ArgumentError = error{
+    InvalidArgument,
+    MissingArgument,
+};
+
 const KiB: u32 = std.math.pow(u32, 1024, 2);
 const MAX_DELIM_LEN = 16;
 
 const HorizontalLineNormal = [4]*const [3:0]u8{ "─", "╌", "┄", "┈" };
 const HorizontalLineBold = [4]*const [3:0]u8{ "━", "╍", "┅", "┉" };
+// const HorizontalLine = {HorizontalLineNormal, HorizontalLineBold};
+
 const VerticalLineNormal = [4]*const [3:0]u8{ "│", "╎", "┆", "┊" };
 const VerticalLineBold = [4]*const [3:0]u8{ "┃", "╏", "┇", "┋" };
 
@@ -34,7 +41,6 @@ const CornerWeight = enum(usize) {
     bold,
 };
 
-const BorderPos = enum { top, first, middle, bottom };
 const BorderType = enum { outer, first, inner };
 const BorderWeight = enum { normal, bold };
 const BorderFmt = struct {
@@ -46,11 +52,12 @@ const Borders = struct {
     outer: ?BorderFmt = null,
     first: ?BorderFmt = null,
 };
+const HorizontalBorderPos = enum { top, first, middle, bottom };
 
 const TableFormat = struct {
     row_delimiter: []u8,
     col_delimiter: []u8,
-    color: bool,
+    color_alternating_rows: bool,
     horizontal: Borders,
     vertical: Borders,
 };
@@ -64,7 +71,6 @@ pub fn main() !u8 {
     const stdout_file = std.io.getStdOut().writer();
     var bw = std.io.bufferedWriter(stdout_file);
     const stdout = bw.writer();
-    const stderr = std.io.getStdErr().writer();
 
     var row_delimiter = [_]u8{0} ** MAX_DELIM_LEN;
     var col_delimiter = [_]u8{0} ** MAX_DELIM_LEN;
@@ -84,13 +90,13 @@ pub fn main() !u8 {
     var format = TableFormat{
         .row_delimiter = row_delimiter[0..1],
         .col_delimiter = col_delimiter[0..1],
-        .color = true,
+        .color_alternating_rows = true,
         .horizontal = row_borders,
         .vertical = col_borders,
     };
 
     var args = std.process.args();
-    _ = try parse_args(stderr, &args, &format.row_delimiter, &format.col_delimiter);
+    _ = try parse_args(&args, &format.row_delimiter, &format.col_delimiter);
 
     // STDIN
     const stdin = std.io.getStdIn().reader();
@@ -99,7 +105,7 @@ pub fn main() !u8 {
     const len = try stdin.readAll(&input);
 
     if (len <= 1) {
-        try stderr.writeAll("Error: no input given.\n");
+        std.debug.print("Error: no input given.\n", .{});
         return 1;
     }
 
@@ -114,44 +120,43 @@ pub fn main() !u8 {
     return 0;
 }
 
-pub fn parse_args(stderr: anytype, args: *std.process.ArgIterator, row_delimiter: *([]u8), col_delimiter: *([]u8)) !u8 {
+pub fn parse_args(args: *std.process.ArgIterator, row_delimiter: *([]u8), col_delimiter: *([]u8)) ArgumentError!void {
     var row_delimiter_len: usize = 1;
     var col_delimiter_len: usize = 1;
     while ((args.*).next()) |arg| {
         if (arg.len < 2) {
-            try stderr.print("Error: invalid argument '{s}'\n", .{arg});
-            return 1;
+            std.debug.print("Error: invalid argument '{s}'\n", .{arg});
+            return error.InvalidArgument;
         }
 
         if (std.mem.eql(u8, arg, "--row-delimiter") or std.mem.eql(u8, arg, "-r")) {
             if ((args.*).next()) |value| {
                 if (value.len > MAX_DELIM_LEN) {
-                    try stderr.print("Error: row delimiter exceeds max length ({d}).\n", .{MAX_DELIM_LEN});
-                    return 1;
+                    std.debug.print("Error: row delimiter exceeds max length ({d}).\n", .{MAX_DELIM_LEN});
+                    return error.InvalidArgument;
                 }
                 std.mem.copyForwards(u8, row_delimiter.*, value);
                 row_delimiter_len = value.len;
             } else {
-                try stderr.print("Error: no value given for '{s}'.\n", .{arg});
-                return 1;
+                std.debug.print("Error: no value given for '{s}'.\n", .{arg});
+                return error.MissingArgument;
             }
         } else if (std.mem.eql(u8, arg, "--col-delimiter") or std.mem.eql(u8, arg, "-c")) {
             if ((args.*).next()) |value| {
                 if (value.len > MAX_DELIM_LEN) {
-                    try stderr.print("Error: column delimiter exceeds max length ({d}).\n", .{MAX_DELIM_LEN});
-                    return 1;
+                    std.debug.print("Error: column delimiter exceeds max length ({d}).\n", .{MAX_DELIM_LEN});
+                    return error.InvalidArgument;
                 }
                 std.mem.copyForwards(u8, col_delimiter.*, value);
                 col_delimiter_len = value.len;
             } else {
-                try stderr.print("Error: no value given for '{s}'.\n", .{arg});
-                return 1;
+                std.debug.print("Error: no value given for '{s}'.\n", .{arg});
+                return error.MissingArgument;
             }
         }
     }
     row_delimiter.* = row_delimiter.*[0..row_delimiter_len];
     col_delimiter.* = col_delimiter.*[0..col_delimiter_len];
-    return 0;
 }
 
 pub fn print_table(
@@ -160,6 +165,8 @@ pub fn print_table(
     input: []const u8,
     format: TableFormat,
 ) !void {
+    // TODO: At most 16 different corner types are used - could I figure those out just once?
+
     // Technically this could be smaller but it shouldn't really matter
     var field_widths = std.ArrayList(usize).init(allocator);
     defer field_widths.deinit();
@@ -209,7 +216,7 @@ pub fn print_table(
             }
         } else " ");
 
-        if (format.color and row_num % 2 == 1) {
+        if (format.color_alternating_rows and row_num % 2 == 1) {
             // Shade the row background
             try stdout.writeAll("\x1b[48;5;253m");
         }
@@ -228,7 +235,7 @@ pub fn print_table(
             }
 
             // Disable color
-            if (i == field_widths.items.len - 1 and format.color and row_num % 2 == 1) {
+            if (i == field_widths.items.len - 1 and format.color_alternating_rows and row_num % 2 == 1) {
                 try stdout.writeAll("\x1b[0m");
             }
 
@@ -256,7 +263,6 @@ pub fn print_table(
 
         // Horizontal border between rows
         if (row_num < row_count - 1) {
-            // TODO: first
             if (row_num == 0 and format.horizontal.first != null) {
                 try print_horizontal_border(
                     field_widths,
@@ -307,7 +313,7 @@ fn print_horizontal_border(
     stdout: anytype, // TODO: specify type
     horiz_format: BorderFmt,
     vertical: Borders,
-    location: BorderPos,
+    location: HorizontalBorderPos,
 ) !void {
     const h_weight = horiz_format.weight;
     const h_style = horiz_format.style;
@@ -413,7 +419,7 @@ test "basic" {
     const format = TableFormat{
         .row_delimiter = row_delimiter[0..1],
         .col_delimiter = col_delimiter[0..1],
-        .color = true,
+        .color_alternating_rows = true,
         .horizontal = row_borders,
         .vertical = col_borders,
     };
