@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const KiB: u32 = std.math.pow(u32, 1024, 2);
+const MAX_DELIM_LEN = 16;
 
 const HorizontalLineNormal = [4]*const [3:0]u8{ "─", "╌", "┄", "┈" };
 const HorizontalLineBold = [4]*const [3:0]u8{ "━", "╍", "┅", "┉" };
@@ -65,7 +66,6 @@ pub fn main() !u8 {
     const stdout = bw.writer();
     const stderr = std.io.getStdErr().writer();
 
-    const MAX_DELIM_LEN = 16;
     var row_delimiter = [_]u8{0} ** MAX_DELIM_LEN;
     var col_delimiter = [_]u8{0} ** MAX_DELIM_LEN;
     row_delimiter[0] = '\n';
@@ -91,41 +91,7 @@ pub fn main() !u8 {
         .vertical = col_borders,
     };
 
-    var args = std.process.args();
-    var row_delimiter_len: usize = 1;
-    var col_delimiter_len: usize = 1;
-    while (args.next()) |arg| {
-        try stdout.print("{s}\n", .{arg});
-        if (arg.len < 2) {
-            try stderr.print("Error: invalid argument '{s}'\n", .{arg});
-            return 1;
-        }
-        if (std.mem.eql(u8, arg, "--row-delimiter") or std.mem.eql(u8, arg, "-r")) {
-            if (args.next()) |value| {
-                if (value.len > MAX_DELIM_LEN) {
-                    try stderr.print("Error: row delimiter exceeds max length ({d}).\n", .{MAX_DELIM_LEN});
-                    return 1;
-                }
-                std.mem.copyForwards(u8, &row_delimiter, value);
-                row_delimiter_len = value.len;
-            } else {
-                try stderr.print("Error: no value given for '{s}'.\n", .{arg});
-                return 1;
-            }
-        } else if (std.mem.eql(u8, arg, "--col-delimiter") or std.mem.eql(u8, arg, "-c")) {
-            if (args.next()) |value| {
-                if (value.len > MAX_DELIM_LEN) {
-                    try stderr.print("Error: column delimiter exceeds max length ({d}).\n", .{MAX_DELIM_LEN});
-                    return 1;
-                }
-                std.mem.copyForwards(u8, &col_delimiter, value);
-                col_delimiter_len = value.len;
-            } else {
-                try stderr.print("Error: no value given for '{s}'.\n", .{arg});
-                return 1;
-            }
-        }
-    }
+    _ = try parse_args(stderr, &format.row_delimiter, &format.col_delimiter);
 
     // STDIN
     const stdin = std.io.getStdIn().reader();
@@ -138,9 +104,6 @@ pub fn main() !u8 {
         return 1;
     }
 
-    format.row_delimiter = row_delimiter[0..row_delimiter_len];
-    format.col_delimiter = col_delimiter[0..col_delimiter_len];
-
     try print_table(
         allocator,
         stdout,
@@ -149,6 +112,47 @@ pub fn main() !u8 {
     );
     try bw.flush();
 
+    return 0;
+}
+
+pub fn parse_args(stderr: anytype, row_delimiter: *([]u8), col_delimiter: *([]u8)) !u8 {
+    var args = std.process.args();
+    var row_delimiter_len: usize = 1;
+    var col_delimiter_len: usize = 1;
+    while (args.next()) |arg| {
+        if (arg.len < 2) {
+            try stderr.print("Error: invalid argument '{s}'\n", .{arg});
+            return 1;
+        }
+
+        if (std.mem.eql(u8, arg, "--row-delimiter") or std.mem.eql(u8, arg, "-r")) {
+            if (args.next()) |value| {
+                if (value.len > MAX_DELIM_LEN) {
+                    try stderr.print("Error: row delimiter exceeds max length ({d}).\n", .{MAX_DELIM_LEN});
+                    return 1;
+                }
+                std.mem.copyForwards(u8, row_delimiter.*, value);
+                row_delimiter_len = value.len;
+            } else {
+                try stderr.print("Error: no value given for '{s}'.\n", .{arg});
+                return 1;
+            }
+        } else if (std.mem.eql(u8, arg, "--col-delimiter") or std.mem.eql(u8, arg, "-c")) {
+            if (args.next()) |value| {
+                if (value.len > MAX_DELIM_LEN) {
+                    try stderr.print("Error: column delimiter exceeds max length ({d}).\n", .{MAX_DELIM_LEN});
+                    return 1;
+                }
+                std.mem.copyForwards(u8, col_delimiter.*, value);
+                col_delimiter_len = value.len;
+            } else {
+                try stderr.print("Error: no value given for '{s}'.\n", .{arg});
+                return 1;
+            }
+        }
+    }
+    row_delimiter.* = row_delimiter.*[0..row_delimiter_len];
+    col_delimiter.* = col_delimiter.*[0..col_delimiter_len];
     return 0;
 }
 
