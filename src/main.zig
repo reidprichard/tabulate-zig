@@ -1,7 +1,5 @@
 const std = @import("std");
 
-// const GiB: u32 = std.math.pow(u32, 1024, 3);
-const MiB: u32 = std.math.pow(u32, 1024, 2);
 const KiB: u32 = std.math.pow(u32, 1024, 2);
 
 const HorizontalLineNormal = [4]*const [3:0]u8{ "─", "╌", "┄", "┈" };
@@ -57,35 +55,33 @@ const TableFormat = struct {
 };
 
 pub fn main() !u8 {
+    // Allocators
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator: std.mem.Allocator = gpa.allocator();
+
+    // STDOUT, STDERR
+    const stdout_file = std.io.getStdOut().writer();
+    var bw = std.io.bufferedWriter(stdout_file);
+    const stdout = bw.writer();
+    const stderr = std.io.getStdErr().writer();
 
     const MAX_DELIM_LEN = 16;
     var row_delimiter = [_]u8{0} ** MAX_DELIM_LEN;
     var col_delimiter = [_]u8{0} ** MAX_DELIM_LEN;
+    row_delimiter[0] = '\n';
+    col_delimiter[0] = ' ';
 
-    // var row_borders = std.AutoHashMap(BorderType, BorderFmt).init(allocator);
-    // defer row_borders.deinit();
-    // try row_borders.put(.outer, BorderFmt{ .weight = .bold, .style = .solid });
-    // try row_borders.put(.first, BorderFmt{ .weight = .normal, .style = .solid });
     const row_borders = Borders{
         .first = BorderFmt{ .weight = .normal, .style = .solid },
         .inner = null,
         .outer = BorderFmt{ .weight = .bold, .style = .solid },
     };
 
-    // var col_borders = std.AutoHashMap(BorderType, BorderFmt).init(allocator);
-    // defer col_borders.deinit();
-    // try col_borders.put(.outer, BorderFmt{ .weight = .bold, .style = .solid });
-    // try col_borders.put(.inner, BorderFmt{ .weight = .normal, .style = .solid });
     const col_borders = Borders{
         .first = BorderFmt{ .weight = .normal, .style = .solid },
         .inner = null,
         .outer = BorderFmt{ .weight = .bold, .style = .solid },
     };
-
-    row_delimiter[0] = '\n';
-    col_delimiter[0] = ' ';
 
     var format = TableFormat{
         .row_delimiter = row_delimiter[0..1],
@@ -96,17 +92,11 @@ pub fn main() !u8 {
     };
 
     var args = std.process.args();
-
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
-
-    const stderr = std.io.getStdErr().writer();
-
     while (args.next()) |arg| {
         try stdout.print("{s}\n", .{arg});
         if (arg.len < 2) {
-            break; //return error{InvalidArgument};
+            try stderr.print("Error: invalid argument '{s}'\n", .{arg});
+            return 1;
         }
         if (std.mem.eql(u8, arg, "--row-delimiter") or std.mem.eql(u8, arg, "-r")) {
             const value = args.next().?;
@@ -115,7 +105,6 @@ pub fn main() !u8 {
                 return 1;
             }
             std.mem.copyForwards(u8, &row_delimiter, value);
-            // row_delimiter = args.next().?;
         } else if (std.mem.eql(u8, arg, "--col-delimiter") or std.mem.eql(u8, arg, "-c")) {
             std.mem.copyForwards(u8, &col_delimiter, args.next().?);
         }
@@ -391,8 +380,6 @@ test "basic" {
     defer file.close();
 
     var buf: [1024]u8 = undefined;
-    // var buf: 1024[u8] = undefined;
-
     const len = try file.readAll(&buf);
 
     var row_borders = std.AutoHashMap(BorderType, BorderFmt).init(allocator);
