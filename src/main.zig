@@ -209,7 +209,7 @@ pub fn print_table(
             }
         } else " ");
 
-        if (format.color and row_num % 2 == 0) {
+        if (format.color and row_num % 2 == 1) {
             // Shade the row background
             try stdout.writeAll("\x1b[48;5;253m");
         }
@@ -228,7 +228,7 @@ pub fn print_table(
             }
 
             // Disable color
-            if (i == field_widths.items.len - 1 and format.color and row_num % 2 == 0) {
+            if (i == field_widths.items.len - 1 and format.color and row_num % 2 == 1) {
                 try stdout.writeAll("\x1b[0m");
             }
 
