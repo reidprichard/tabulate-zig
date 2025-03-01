@@ -1,6 +1,7 @@
 const std = @import("std");
 
-const GiB: u32 = std.math.pow(u32, 1024, 3);
+// const GiB: u32 = std.math.pow(u32, 1024, 3);
+const MiB: u32 = std.math.pow(u32, 1024, 2);
 
 const HorizontalLineNormal = [4]*const [3:0]u8{ "─", "╌", "┄", "┈" };
 const HorizontalLineBold = [4]*const [3:0]u8{ "━", "╍", "┅", "┉" };
@@ -106,7 +107,7 @@ pub fn main() !u8 {
 
     // STDIN
     const stdin = std.io.getStdIn().reader();
-    const input = try stdin.readAllAlloc(allocator, GiB);
+    const input = try stdin.readAllAlloc(allocator, 128 * MiB);
     defer allocator.free(input);
     if (input.len <= 1) {
         try stderr.writeAll("Error: no input given.\n");
