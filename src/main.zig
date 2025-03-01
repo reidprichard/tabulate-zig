@@ -92,6 +92,8 @@ pub fn main() !u8 {
     };
 
     var args = std.process.args();
+    var row_delimiter_len: usize = 1;
+    var col_delimiter_len: usize = 1;
     while (args.next()) |arg| {
         try stdout.print("{s}\n", .{arg});
         if (arg.len < 2) {
@@ -101,12 +103,19 @@ pub fn main() !u8 {
         if (std.mem.eql(u8, arg, "--row-delimiter") or std.mem.eql(u8, arg, "-r")) {
             const value = args.next().?;
             if (value.len > MAX_DELIM_LEN) {
-                std.debug.print("{s}\n", .{"ERROR"});
+                try stderr.print("Error: invalid argument '{s}'\n", .{value});
                 return 1;
             }
             std.mem.copyForwards(u8, &row_delimiter, value);
+            row_delimiter_len = value.len;
         } else if (std.mem.eql(u8, arg, "--col-delimiter") or std.mem.eql(u8, arg, "-c")) {
-            std.mem.copyForwards(u8, &col_delimiter, args.next().?);
+            const value = args.next().?;
+            if (value.len > MAX_DELIM_LEN) {
+                try stderr.print("Error: invalid argument '{s}'\n", .{value});
+                return 1;
+            }
+            std.mem.copyForwards(u8, &col_delimiter, value);
+            col_delimiter_len = value.len;
         }
     }
 
@@ -121,11 +130,8 @@ pub fn main() !u8 {
         return 1;
     }
 
-    const zero = [_]u8{0};
-    // Slice each to the first null byte - I guess this could be
-    // a problem if the user wanted to delimit with null bytes...?
-    format.row_delimiter = row_delimiter[0..std.mem.indexOf(u8, &row_delimiter, &zero).?];
-    format.col_delimiter = col_delimiter[0..std.mem.indexOf(u8, &col_delimiter, &zero).?];
+    format.row_delimiter = row_delimiter[0..row_delimiter_len];
+    format.col_delimiter = col_delimiter[0..col_delimiter_len];
 
     try print_table(
         allocator,
