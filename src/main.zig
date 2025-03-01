@@ -50,14 +50,10 @@ const TableFormat = struct {
 };
 
 pub fn main() !u8 {
-    // const allocator: std.mem.Allocator = std.heap.page_allocator;
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator: std.mem.Allocator = gpa.allocator();
 
-    // var buf: [1024]u8 = [_]u8{0} ** 1024;
-    // const allocator: std.mem.Allocator = std.heap.FixedBufferAllocator.init(&buf);
-
-    const MAX_DELIM_LEN = 64;
+    const MAX_DELIM_LEN = 16;
     var row_delimiter = [_]u8{0} ** MAX_DELIM_LEN;
     var col_delimiter = [_]u8{0} ** MAX_DELIM_LEN;
 
