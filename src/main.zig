@@ -64,14 +64,12 @@ pub fn main() !u8 {
     var row_borders = std.AutoHashMap(BorderType, BorderFmt).init(allocator);
     defer row_borders.deinit();
     try row_borders.put(.outer, BorderFmt{ .weight = .bold, .style = .solid });
-    try row_borders.put(.first, BorderFmt{ .weight = .bold, .style = .solid });
-    try row_borders.put(.inner, BorderFmt{ .weight = .normal, .style = .dash2 });
+    try row_borders.put(.first, BorderFmt{ .weight = .normal, .style = .solid });
 
     var col_borders = std.AutoHashMap(BorderType, BorderFmt).init(allocator);
     defer col_borders.deinit();
     try col_borders.put(.outer, BorderFmt{ .weight = .bold, .style = .solid });
-    // try col_borders.put(.first, BorderFmt{ .weight = .bold, .style = .dash4 });
-    // try col_borders.put(.inner, BorderFmt{ .weight = .normal, .style = .solid });
+    try col_borders.put(.inner, BorderFmt{ .weight = .normal, .style = .solid });
 
     row_delimiter[0] = '\n';
     col_delimiter[0] = ' ';
@@ -120,6 +118,8 @@ pub fn main() !u8 {
     }
 
     const zero = [_]u8{0};
+    // Slice each to the first null byte - I guess this could be
+    // a problem if the user wanted to delimit with null bytes...?
     format.row_delimiter = row_delimiter[0..std.mem.indexOf(u8, &row_delimiter, &zero).?];
     format.col_delimiter = col_delimiter[0..std.mem.indexOf(u8, &col_delimiter, &zero).?];
 
@@ -187,10 +187,7 @@ pub fn print_table(
                 .normal => break :if_blk VerticalLineNormal[@intFromEnum(style)],
                 .bold => break :if_blk VerticalLineBold[@intFromEnum(style)],
             }
-        } else else_blk: {
-            // two null bytes to match len of box drawing chars
-            break :else_blk " \x00\x00";
-        });
+        } else " ");
 
         if (format.color and row_num % 2 == 0) {
             // Shade the row background
@@ -367,4 +364,40 @@ fn print_horizontal_border(
         }
     }
     try stdout.writeAll(right ++ "\n");
+}
+
+test "basic" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator: std.mem.Allocator = gpa.allocator();
+
+    const stdout = std.io.getStdOut().writer();
+
+    var file = try std.fs.cwd().openFile("test/basic.txt", .{});
+    defer file.close();
+
+    var buf: [1024]u8 = undefined;
+    // var buf: 1024[u8] = undefined;
+
+    const len = try file.readAll(&buf);
+
+    var row_borders = std.AutoHashMap(BorderType, BorderFmt).init(allocator);
+    defer row_borders.deinit();
+    try row_borders.put(.outer, BorderFmt{ .weight = .bold, .style = .solid });
+    try row_borders.put(.first, BorderFmt{ .weight = .bold, .style = .dash2 });
+
+    var col_borders = std.AutoHashMap(BorderType, BorderFmt).init(allocator);
+    defer col_borders.deinit();
+    try col_borders.put(.outer, BorderFmt{ .weight = .bold, .style = .solid });
+    try col_borders.put(.inner, BorderFmt{ .weight = .normal, .style = .dash4 });
+
+    var row_delimiter = [1]u8{'\n'};
+    var col_delimiter = [1]u8{' '};
+    const format = TableFormat{
+        .row_delimiter = row_delimiter[0..1],
+        .col_delimiter = col_delimiter[0..1],
+        .color = true,
+        .horizontal = row_borders,
+        .vertical = col_borders,
+    };
+    try print_table(allocator, stdout, buf[0 .. len - 1], format);
 }
