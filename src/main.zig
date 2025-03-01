@@ -101,21 +101,29 @@ pub fn main() !u8 {
             return 1;
         }
         if (std.mem.eql(u8, arg, "--row-delimiter") or std.mem.eql(u8, arg, "-r")) {
-            const value = args.next().?;
-            if (value.len > MAX_DELIM_LEN) {
-                try stderr.print("Error: invalid argument '{s}'\n", .{value});
+            if (args.next()) |value| {
+                if (value.len > MAX_DELIM_LEN) {
+                    try stderr.print("Error: row delimiter exceeds max length ({d}).\n", .{MAX_DELIM_LEN});
+                    return 1;
+                }
+                std.mem.copyForwards(u8, &row_delimiter, value);
+                row_delimiter_len = value.len;
+            } else {
+                try stderr.print("Error: no value given for '{s}'.\n", .{arg});
                 return 1;
             }
-            std.mem.copyForwards(u8, &row_delimiter, value);
-            row_delimiter_len = value.len;
         } else if (std.mem.eql(u8, arg, "--col-delimiter") or std.mem.eql(u8, arg, "-c")) {
-            const value = args.next().?;
-            if (value.len > MAX_DELIM_LEN) {
-                try stderr.print("Error: invalid argument '{s}'\n", .{value});
+            if (args.next()) |value| {
+                if (value.len > MAX_DELIM_LEN) {
+                    try stderr.print("Error: column delimiter exceeds max length ({d}).\n", .{MAX_DELIM_LEN});
+                    return 1;
+                }
+                std.mem.copyForwards(u8, &col_delimiter, value);
+                col_delimiter_len = value.len;
+            } else {
+                try stderr.print("Error: no value given for '{s}'.\n", .{arg});
                 return 1;
             }
-            std.mem.copyForwards(u8, &col_delimiter, value);
-            col_delimiter_len = value.len;
         }
     }
 
