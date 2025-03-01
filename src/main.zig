@@ -5,7 +5,7 @@ const ArgumentError = error{
     MissingArgument,
 };
 
-const KiB: u32 = std.math.pow(u32, 1024, 2);
+const MiB: u32 = std.math.pow(u32, 1024, 2);
 const MAX_DELIM_LEN = 16;
 
 const HorizontalLineNormal = [4]*const [3:0]u8{ "─", "╌", "┄", "┈" };
@@ -100,7 +100,7 @@ pub fn main() !u8 {
 
     // STDIN
     const stdin = std.io.getStdIn().reader();
-    const buffer_size = 8 * KiB;
+    const buffer_size = 8 * MiB;
     var input: [buffer_size]u8 = [_]u8{0} ** buffer_size;
     const len = try stdin.readAll(&input);
 
