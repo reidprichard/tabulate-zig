@@ -42,9 +42,9 @@ const BorderFmt = struct {
     style: enum { solid, dash2, dash3, dash4 },
 };
 const Borders = struct {
-    inner: ?BorderFmt,
-    outer: ?BorderFmt,
-    first: ?BorderFmt,
+    inner: ?BorderFmt = null,
+    outer: ?BorderFmt = null,
+    first: ?BorderFmt = null,
 };
 
 const TableFormat = struct {
@@ -72,15 +72,13 @@ pub fn main() !u8 {
     col_delimiter[0] = ' ';
 
     const row_borders = Borders{
-        .first = BorderFmt{ .weight = .normal, .style = .solid },
-        .inner = null,
         .outer = BorderFmt{ .weight = .bold, .style = .solid },
+        .first = BorderFmt{ .weight = .normal, .style = .solid },
     };
 
     const col_borders = Borders{
-        .first = BorderFmt{ .weight = .normal, .style = .solid },
-        .inner = null,
         .outer = BorderFmt{ .weight = .bold, .style = .solid },
+        .inner = BorderFmt{ .weight = .normal, .style = .solid },
     };
 
     var format = TableFormat{
