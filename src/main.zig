@@ -5,6 +5,12 @@ const ArgumentError = error{
     MissingArgument,
 };
 
+const InputError = error{
+    IOError,
+    NoInput,
+    BufferFull,
+};
+
 const MiB: u32 = std.math.pow(u32, 1024, 2);
 const MAX_DELIM_LEN = 16;
 
@@ -62,7 +68,7 @@ const TableFormat = struct {
     vertical: Borders,
 };
 
-pub fn main() !u8 {
+pub fn main() (ArgumentError || InputError)!u8 {
     // Allocators
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator: std.mem.Allocator = gpa.allocator();
@@ -100,22 +106,32 @@ pub fn main() !u8 {
 
     // STDIN
     const stdin = std.io.getStdIn().reader();
-    const buffer_size = 8 * MiB;
+    const buffer_size = 8 * MiB; // NOTE: is stack size platform dependent?
+
     var input: [buffer_size]u8 = [_]u8{0} ** buffer_size;
-    const len = try stdin.readAll(&input);
+    const len = stdin.readAll(&input) catch {
+        return error.IOError;
+    };
 
     if (len <= 1) {
-        std.debug.print("Error: no input given.\n", .{});
-        return 1;
+        return error.NoInput;
+    } else if (len == buffer_size) {
+        // TODO: create a heap allocated array if buffer full
+        return error.BufferFull;
     }
 
-    try print_table(
+    print_table(
         allocator,
         stdout,
         input[0 .. len - 1],
         format,
-    );
-    try bw.flush();
+    ) catch {
+        return error.IOError;
+    };
+
+    bw.flush() catch {
+        return error.IOError;
+    };
 
     return 0;
 }
