@@ -91,7 +91,8 @@ pub fn main() !u8 {
         .vertical = col_borders,
     };
 
-    _ = try parse_args(stderr, &format.row_delimiter, &format.col_delimiter);
+    var args = std.process.args();
+    _ = try parse_args(stderr, &args, &format.row_delimiter, &format.col_delimiter);
 
     // STDIN
     const stdin = std.io.getStdIn().reader();
@@ -115,18 +116,17 @@ pub fn main() !u8 {
     return 0;
 }
 
-pub fn parse_args(stderr: anytype, row_delimiter: *([]u8), col_delimiter: *([]u8)) !u8 {
-    var args = std.process.args();
+pub fn parse_args(stderr: anytype, args: *std.process.ArgIterator, row_delimiter: *([]u8), col_delimiter: *([]u8)) !u8 {
     var row_delimiter_len: usize = 1;
     var col_delimiter_len: usize = 1;
-    while (args.next()) |arg| {
+    while ((args.*).next()) |arg| {
         if (arg.len < 2) {
             try stderr.print("Error: invalid argument '{s}'\n", .{arg});
             return 1;
         }
 
         if (std.mem.eql(u8, arg, "--row-delimiter") or std.mem.eql(u8, arg, "-r")) {
-            if (args.next()) |value| {
+            if ((args.*).next()) |value| {
                 if (value.len > MAX_DELIM_LEN) {
                     try stderr.print("Error: row delimiter exceeds max length ({d}).\n", .{MAX_DELIM_LEN});
                     return 1;
@@ -138,7 +138,7 @@ pub fn parse_args(stderr: anytype, row_delimiter: *([]u8), col_delimiter: *([]u8
                 return 1;
             }
         } else if (std.mem.eql(u8, arg, "--col-delimiter") or std.mem.eql(u8, arg, "-c")) {
-            if (args.next()) |value| {
+            if ((args.*).next()) |value| {
                 if (value.len > MAX_DELIM_LEN) {
                     try stderr.print("Error: column delimiter exceeds max length ({d}).\n", .{MAX_DELIM_LEN});
                     return 1;
