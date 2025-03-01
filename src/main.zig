@@ -100,7 +100,7 @@ pub fn main() !u8 {
 
     // STDIN
     const stdin = std.io.getStdIn().reader();
-    const buffer_size = 16 * KiB;
+    const buffer_size = 8 * KiB;
     var input: [buffer_size]u8 = [_]u8{0} ** buffer_size;
     const len = try stdin.readAll(&input);
 
