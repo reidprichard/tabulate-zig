@@ -349,7 +349,7 @@ fn print_horizontal_border(
 ) !void {
     const h_weight = horiz_format.weight;
     const h_style = horiz_format.style;
-    const horiz = (if (h_weight == .normal) HorizontalLineNormal else HorizontalLineBold);
+    const horizontal = (if (h_weight == .normal) HorizontalLineNormal else HorizontalLineBold);
 
     // TODO: remove repeated code between `left` and `right`
     const left: *const [3:0]u8 = if (vertical.outer) |v_format| corner: {
@@ -361,7 +361,7 @@ fn print_horizontal_border(
             .bottom => break :corner BottomLeft[corner_weight],
         }
     } else straight: {
-        break :straight horiz[@intFromEnum(h_style)];
+        break :straight horizontal[@intFromEnum(h_style)];
     };
     const right: *const [3:0]u8 = if (vertical.outer) |v_format| corner: {
         const corner_weight: usize = @intFromEnum(get_corner_weight(h_weight, v_format.weight));
@@ -372,7 +372,7 @@ fn print_horizontal_border(
             .bottom => break :corner BottomRight[corner_weight],
         }
     } else straight: {
-        break :straight horiz[@intFromEnum(h_style)];
+        break :straight horizontal[@intFromEnum(h_style)];
     };
 
     const middle_weight = if (vertical.inner) |v_format| blk: {
@@ -390,12 +390,7 @@ fn print_horizontal_border(
             .middle => Cross[middle],
             .bottom => BottomTee[middle],
         };
-    } else blk: {
-        break :blk switch (h_weight) {
-            .normal => HorizontalLineNormal[@intFromEnum(h_style)],
-            .bold => HorizontalLineBold[@intFromEnum(h_style)],
-        };
-    };
+    } else horizontal[@intFromEnum(h_style)];
 
     const first = if (first_weight) |first| blk: {
         break :blk switch (location) {
@@ -411,7 +406,7 @@ fn print_horizontal_border(
             try stdout.writeAll(left);
         }
         for (0..width) |_| {
-            try stdout.print("{s}", .{horiz[@intFromEnum(h_style)]});
+            try stdout.print("{s}", .{horizontal[@intFromEnum(h_style)]});
         }
         if (i < widths.items.len - 1) {
             if (i == 0) {
