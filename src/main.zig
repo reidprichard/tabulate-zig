@@ -11,7 +11,9 @@ const InputError = error{
     BufferFull,
 };
 
+const KiB: u32 = std.math.pow(u32, 1024, 1);
 const MiB: u32 = std.math.pow(u32, 1024, 2);
+const GiB: u32 = std.math.pow(u32, 1024, 3);
 const MAX_DELIM_LEN = 16;
 
 const HorizontalLineNormal = [4]*const [3:0]u8{ "─", "╌", "┄", "┈" };
@@ -106,24 +108,38 @@ pub fn main() (ArgumentError || InputError)!u8 {
 
     // STDIN
     const stdin = std.io.getStdIn().reader();
-    const buffer_size = 8 * MiB; // NOTE: is stack size platform dependent?
+    const buffer_size = 1 * MiB; // NOTE: is stack size platform dependent?
 
     var input: [buffer_size]u8 = [_]u8{0} ** buffer_size;
     const len = stdin.readAll(&input) catch {
         return error.IOError;
     };
 
+    // Doesn't seem to be any slower to use this instead of a static array
+    var input_heap = std.ArrayList(u8).init(allocator);
+
     if (len <= 1) {
         return error.NoInput;
     } else if (len == buffer_size) {
         // TODO: create a heap allocated array if buffer full
-        return error.BufferFull;
+        input_heap.ensureTotalCapacity(2 * len) catch {
+            return error.BufferFull;
+        };
+        input_heap.appendSlice(input[0..]) catch {
+            return error.BufferFull;
+        };
+        stdin.readAllArrayList(
+            &input_heap,
+            GiB,
+        ) catch {
+            return error.BufferFull;
+        };
     }
 
     print_table(
         allocator,
         stdout,
-        input[0 .. len - 1],
+        if (input_heap.items.len == 0) input[0 .. len - 1] else input_heap.items[0 .. input_heap.items.len - 1],
         format,
     ) catch {
         return error.IOError;
@@ -406,38 +422,4 @@ fn print_horizontal_border(
         }
     }
     try stdout.writeAll(right ++ "\n");
-}
-
-test "basic" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator: std.mem.Allocator = gpa.allocator();
-
-    const stdout = std.io.getStdOut().writer();
-
-    var file = try std.fs.cwd().openFile("test/basic.txt", .{});
-    defer file.close();
-
-    var buf: [1024]u8 = undefined;
-    const len = try file.readAll(&buf);
-
-    var row_borders = std.AutoHashMap(BorderType, BorderFmt).init(allocator);
-    defer row_borders.deinit();
-    try row_borders.put(.outer, BorderFmt{ .weight = .bold, .style = .solid });
-    try row_borders.put(.first, BorderFmt{ .weight = .bold, .style = .dash2 });
-
-    var col_borders = std.AutoHashMap(BorderType, BorderFmt).init(allocator);
-    defer col_borders.deinit();
-    try col_borders.put(.outer, BorderFmt{ .weight = .bold, .style = .solid });
-    try col_borders.put(.inner, BorderFmt{ .weight = .normal, .style = .dash4 });
-
-    var row_delimiter = [1]u8{'\n'};
-    var col_delimiter = [1]u8{' '};
-    const format = TableFormat{
-        .row_delimiter = row_delimiter[0..1],
-        .col_delimiter = col_delimiter[0..1],
-        .color_alternating_rows = true,
-        .horizontal = row_borders,
-        .vertical = col_borders,
-    };
-    try print_table(allocator, stdout, buf[0 .. len - 1], format);
 }
