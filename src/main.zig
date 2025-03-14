@@ -18,10 +18,11 @@ const MAX_DELIM_LEN = 16;
 
 const HorizontalLineNormal = [4]*const [3:0]u8{ "─", "╌", "┄", "┈" };
 const HorizontalLineBold = [4]*const [3:0]u8{ "━", "╍", "┅", "┉" };
-// const HorizontalLine = {HorizontalLineNormal, HorizontalLineBold};
+const HorizontalLine = [_]*const [4]*const [3:0]u8{ &HorizontalLineNormal, &HorizontalLineBold };
 
 const VerticalLineNormal = [4]*const [3:0]u8{ "│", "╎", "┆", "┊" };
 const VerticalLineBold = [4]*const [3:0]u8{ "┃", "╏", "┇", "┋" };
+const VerticalLine = [_]*const [4]*const [3:0]u8{ &VerticalLineNormal, &VerticalLineBold };
 
 const TopLeft = [4]*const [3:0]u8{ "┌", "┍", "┎", "┏" };
 const TopRight = [4]*const [3:0]u8{ "┐", "┑", "┒", "┓" };
@@ -242,10 +243,7 @@ pub fn print_table(
         try stdout.writeAll(if (format.vertical.outer) |vborder| if_blk: {
             const weight = vborder.weight;
             const style = vborder.style;
-            switch (weight) {
-                .normal => break :if_blk VerticalLineNormal[@intFromEnum(style)],
-                .bold => break :if_blk VerticalLineBold[@intFromEnum(style)],
-            }
+            break :if_blk VerticalLine[@intFromEnum(weight)][@intFromEnum(style)];
         } else " ");
 
         if (format.color_alternating_rows and row_num % 2 == 1) {
@@ -275,19 +273,13 @@ pub fn print_table(
                 const border = format.vertical.first.?;
                 const weight = border.weight;
                 const style = border.style;
-                try stdout.writeAll(switch (weight) {
-                    .normal => VerticalLineNormal[@intFromEnum(style)],
-                    .bold => VerticalLineBold[@intFromEnum(style)],
-                });
+                try stdout.writeAll(VerticalLine[@intFromEnum(weight)][@intFromEnum(style)]);
             } else {
                 // Print vertical field separator
                 try stdout.writeAll(if (if (i < field_widths.items.len - 1) format.vertical.inner else format.vertical.outer) |border| if_blk: {
                     const weight = border.weight;
                     const style = border.style;
-                    switch (weight) {
-                        .normal => break :if_blk VerticalLineNormal[@intFromEnum(style)],
-                        .bold => break :if_blk VerticalLineBold[@intFromEnum(style)],
-                    }
+                    break :if_blk VerticalLine[@intFromEnum(weight)][@intFromEnum(style)];
                 } else " ");
             }
         }
@@ -349,7 +341,7 @@ fn print_horizontal_border(
 ) !void {
     const h_weight = horiz_format.weight;
     const h_style = horiz_format.style;
-    const horizontal = (if (h_weight == .normal) HorizontalLineNormal else HorizontalLineBold);
+    const horizontal = HorizontalLine[@intFromEnum(horiz_format.weight)];
 
     // TODO: remove repeated code between `left` and `right`
     const left: *const [3:0]u8 = if (vertical.outer) |v_format| corner: {
