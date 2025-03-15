@@ -14,15 +14,30 @@ const InputError = error{
 const KiB: u32 = std.math.pow(u32, 1024, 1);
 const MiB: u32 = std.math.pow(u32, 1024, 2);
 const GiB: u32 = std.math.pow(u32, 1024, 3);
-const MAX_DELIM_LEN = 16;
+const MAX_DELIM_BYTES = 16;
 
-const HorizontalLineNormal = [4]*const [3:0]u8{ "─", "╌", "┄", "┈" };
-const HorizontalLineBold = [4]*const [3:0]u8{ "━", "╍", "┅", "┉" };
-const HorizontalLine = [_]*const [4]*const [3:0]u8{ &HorizontalLineNormal, &HorizontalLineBold };
+const LineWeight = enum { normal, bold };
+const LineStyle = enum(usize) {
+    solid,
+    dash2,
+    dash3,
+    dash4,
+};
+const HorizontalLine = [_]*const [4]*const [3:0]u8{
+    &.{ "─", "╌", "┄", "┈" },
+    &.{ "━", "╍", "┅", "┉" },
+};
+const VerticalLine = [_]*const [4]*const [3:0]u8{
+    &.{ "│", "╎", "┆", "┊" },
+    &.{ "┃", "╏", "┇", "┋" },
+};
 
-const VerticalLineNormal = [4]*const [3:0]u8{ "│", "╎", "┆", "┊" };
-const VerticalLineBold = [4]*const [3:0]u8{ "┃", "╏", "┇", "┋" };
-const VerticalLine = [_]*const [4]*const [3:0]u8{ &VerticalLineNormal, &VerticalLineBold };
+const CornerWeight = enum(usize) {
+    normal,
+    bold_horizontal,
+    bold_vertical,
+    bold,
+};
 
 const TopLeft = [4]*const [3:0]u8{ "┌", "┍", "┎", "┏" };
 const TopRight = [4]*const [3:0]u8{ "┐", "┑", "┒", "┓" };
@@ -36,24 +51,8 @@ const BottomTee = [4]*const [3:0]u8{ "┴", "┷", "┸", "┻" };
 
 const Cross = [4]*const [3:0]u8{ "┼", "┿", "╂", "╋" };
 
-const Straight = enum(usize) {
-    solid,
-    dash2,
-    dash3,
-    dash4,
-};
-
-const CornerWeight = enum(usize) {
-    normal,
-    bold_horizontal,
-    bold_vertical,
-    bold,
-};
-
-const BorderType = enum { outer, first, inner };
-const BorderWeight = enum { normal, bold };
 const BorderFmt = struct {
-    weight: BorderWeight,
+    weight: LineWeight,
     style: enum { solid, dash2, dash3, dash4 },
 };
 const Borders = struct {
@@ -81,8 +80,8 @@ pub fn main() (ArgumentError || InputError)!u8 {
     var bw = std.io.bufferedWriter(stdout_file);
     const stdout = bw.writer();
 
-    var row_delimiter = [_]u8{0} ** MAX_DELIM_LEN;
-    var col_delimiter = [_]u8{0} ** MAX_DELIM_LEN;
+    var row_delimiter = [_]u8{0} ** MAX_DELIM_BYTES;
+    var col_delimiter = [_]u8{0} ** MAX_DELIM_BYTES;
     row_delimiter[0] = '\n';
     col_delimiter[0] = ' ';
 
@@ -122,7 +121,6 @@ pub fn main() (ArgumentError || InputError)!u8 {
     if (len <= 1) {
         return error.NoInput;
     } else if (len == buffer_size) {
-        // TODO: create a heap allocated array if buffer full
         input_heap.ensureTotalCapacity(2 * len) catch {
             return error.BufferFull;
         };
@@ -164,8 +162,8 @@ pub fn parse_args(args: *std.process.ArgIterator, row_delimiter: *([]u8), col_de
 
         if (std.mem.eql(u8, arg, "--row-delimiter") or std.mem.eql(u8, arg, "-r")) {
             if ((args.*).next()) |value| {
-                if (value.len > MAX_DELIM_LEN) {
-                    std.debug.print("Error: row delimiter exceeds max length ({d}).\n", .{MAX_DELIM_LEN});
+                if (value.len > MAX_DELIM_BYTES) {
+                    std.debug.print("Error: row delimiter exceeds max length ({d}).\n", .{MAX_DELIM_BYTES});
                     return error.InvalidArgument;
                 }
                 std.mem.copyForwards(u8, row_delimiter.*, value);
@@ -176,8 +174,8 @@ pub fn parse_args(args: *std.process.ArgIterator, row_delimiter: *([]u8), col_de
             }
         } else if (std.mem.eql(u8, arg, "--col-delimiter") or std.mem.eql(u8, arg, "-c")) {
             if ((args.*).next()) |value| {
-                if (value.len > MAX_DELIM_LEN) {
-                    std.debug.print("Error: column delimiter exceeds max length ({d}).\n", .{MAX_DELIM_LEN});
+                if (value.len > MAX_DELIM_BYTES) {
+                    std.debug.print("Error: column delimiter exceeds max length ({d}).\n", .{MAX_DELIM_BYTES});
                     return error.InvalidArgument;
                 }
                 std.mem.copyForwards(u8, col_delimiter.*, value);
@@ -320,7 +318,7 @@ pub fn print_table(
     }
 }
 
-fn get_corner_weight(h_weight: BorderWeight, v_weight: BorderWeight) CornerWeight {
+fn get_corner_weight(h_weight: LineWeight, v_weight: LineWeight) CornerWeight {
     return if (h_weight == .bold and v_weight == .bold) both_bold: {
         break :both_bold .bold;
     } else if (h_weight == .bold) bold_horiz: {
@@ -341,7 +339,7 @@ fn print_horizontal_border(
 ) !void {
     const h_weight = horiz_format.weight;
     const h_style = horiz_format.style;
-    const horizontal = HorizontalLine[@intFromEnum(horiz_format.weight)];
+    const horizontal = HorizontalLine[@intFromEnum(h_weight)];
 
     // TODO: remove repeated code between `left` and `right`
     const left: *const [3:0]u8 = if (vertical.outer) |v_format| corner: {
