@@ -206,22 +206,19 @@ pub fn print_table(
 
     // Iterate over input to get field widths
     var row_iter = std.mem.splitSequence(u8, input, format.row_delimiter);
-    while (row_iter.next()) |row| {
+    while (row_iter.next()) |row| : (row_count += 1) {
         var col_iter = std.mem.split(u8, row, format.col_delimiter);
         var col_num: u32 = 0;
-        // Surely this isn't the right way to do this...?
-        while (col_iter.next()) |entry| {
+        while (col_iter.next()) |entry| : (col_num += 1) {
             const len = entry.len;
-            // Could make this branchless
             if (col_num == field_widths.items.len) {
                 try field_widths.append(len);
             } else {
                 field_widths.items[col_num] = @max(len, field_widths.items[col_num]);
             }
-            col_num += 1;
         }
-        row_count += 1;
     }
+    row_iter.reset();
 
     // Top horizontal border
     if (format.horizontal.outer) |top_hborder| {
@@ -236,8 +233,7 @@ pub fn print_table(
 
     // Print data
     var row_num: usize = 0;
-    row_iter.reset();
-    while (row_iter.next()) |row| {
+    while (row_iter.next()) |row| : (row_num += 1) {
         // First vertical boundary of row
         try stdout.writeAll(if (format.vertical.outer) |vborder| if_blk: {
             const weight = vborder.weight;
@@ -245,7 +241,8 @@ pub fn print_table(
             break :if_blk VerticalLine[@intFromEnum(weight)][@intFromEnum(style)];
         } else " ");
 
-        if (format.color_alternating_rows and row_num % 2 == 1) {
+        const odd_row = row_num % 2 == 1;
+        if (format.color_alternating_rows and odd_row) {
             // Shade the row background
             try stdout.writeAll("\x1b[48;5;253m");
         }
@@ -264,25 +261,23 @@ pub fn print_table(
             }
 
             // Disable color
-            if (i == field_widths.items.len - 1 and format.color_alternating_rows and row_num % 2 == 1) {
+            if (format.color_alternating_rows and (i == field_widths.items.len - 1) and odd_row) {
                 try stdout.writeAll("\x1b[0m");
             }
 
+            // Vertical delimiter after first column
             if (i == 0 and field_widths.items.len > 1 and format.vertical.first != null) {
                 const border = format.vertical.first.?;
                 const weight = border.weight;
                 const style = border.style;
                 try stdout.writeAll(VerticalLine[@intFromEnum(weight)][@intFromEnum(style)]);
-            } else {
-                // Print vertical field separator
-                try stdout.writeAll(if (if (i < field_widths.items.len - 1) format.vertical.inner else format.vertical.outer) |border| if_blk: {
-                    const weight = border.weight;
-                    const style = border.style;
-                    break :if_blk VerticalLine[@intFromEnum(weight)][@intFromEnum(style)];
-                } else " ");
+            } else if (i < field_widths.items.len - 1) {
+                // Vertical field separator after all other columns
+                // This is gross
+                try stdout.writeAll(if (format.vertical.inner) |border| VerticalLine[@intFromEnum(border.weight)][@intFromEnum(border.style)] else " ");
             }
         }
-        try stdout.writeAll("\n");
+        try stdout.print("{s}\n", .{if (format.vertical.outer) |border| VerticalLine[@intFromEnum(border.weight)][@intFromEnum(border.style)] else " "});
 
         // Horizontal border between rows
         if (row_num < row_count - 1) {
@@ -304,7 +299,6 @@ pub fn print_table(
                 );
             }
         }
-        row_num += 1;
     }
 
     // Bottom horizontal border
@@ -340,7 +334,7 @@ fn print_horizontal_border(
 ) !void {
     const h_weight = horiz_format.weight;
     const h_style = horiz_format.style;
-    const horizontal = HorizontalLine[@intFromEnum(h_weight)];
+    const horizontal = HorizontalLine[@intFromEnum(h_weight)][@intFromEnum(h_style)];
 
     // TODO: remove repeated code between `left` and `right`
     const left: *const [3:0]u8 = if (vertical.outer) |v_format| corner: {
@@ -350,9 +344,8 @@ fn print_horizontal_border(
             .first, .middle => TeeLeft,
             .bottom => CornerBottomLeft,
         }[corner_weight];
-    } else straight: {
-        break :straight horizontal[@intFromEnum(h_style)];
-    };
+    } else horizontal;
+
     const right: *const [3:0]u8 = if (vertical.outer) |v_format| corner: {
         const corner_weight: usize = @intFromEnum(get_corner_weight(h_weight, v_format.weight));
         break :corner switch (location) {
@@ -360,9 +353,7 @@ fn print_horizontal_border(
             .first, .middle => TeeRight,
             .bottom => CornerBottomRight,
         }[corner_weight];
-    } else straight: {
-        break :straight horizontal[@intFromEnum(h_style)];
-    };
+    } else horizontal;
 
     const middle_weight = if (vertical.inner) |v_format| blk: {
         break :blk @intFromEnum(get_corner_weight(h_weight, v_format.weight));
@@ -379,7 +370,7 @@ fn print_horizontal_border(
             .middle => Cross[middle],
             .bottom => TeeBottom[middle],
         };
-    } else horizontal[@intFromEnum(h_style)];
+    } else horizontal;
 
     const first = if (first_weight) |first| blk: {
         break :blk switch (location) {
@@ -395,7 +386,7 @@ fn print_horizontal_border(
             try stdout.writeAll(left);
         }
         for (0..width) |_| {
-            try stdout.print("{s}", .{horizontal[@intFromEnum(h_style)]});
+            try stdout.print("{s}", .{horizontal});
         }
         if (i < widths.items.len - 1) {
             if (i == 0) {
