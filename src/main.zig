@@ -11,11 +11,13 @@ const InputError = error{
     BufferFull,
 };
 
+// *** General constants ***
 const KiB: u32 = std.math.pow(u32, 1024, 1);
 const MiB: u32 = std.math.pow(u32, 1024, 2);
 const GiB: u32 = std.math.pow(u32, 1024, 3);
 const MAX_DELIM_BYTES = 16;
 
+// *** Straight lines ***
 const LineWeight = enum { normal, bold };
 const LineStyle = enum(usize) {
     solid,
@@ -32,6 +34,7 @@ const VerticalLine = [_]*const [4]*const [3:0]u8{
     &.{ "┃", "╏", "┇", "┋" },
 };
 
+/// *** Corners ***
 const CornerWeight = enum(usize) {
     normal,
     bold_horizontal,
@@ -52,6 +55,7 @@ const TeeBottom = [4]*const [3:0]u8{ "┴", "┷", "┸", "┻" };
 
 const Cross = [4]*const [3:0]u8{ "┼", "┿", "╂", "╋" };
 
+// *** Border/table metadata ***
 const BorderFmt = struct {
     weight: LineWeight,
     style: enum { solid, dash2, dash3, dash4 },
