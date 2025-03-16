@@ -39,15 +39,16 @@ const CornerWeight = enum(usize) {
     bold,
 };
 
-const TopLeft = [4]*const [3:0]u8{ "┌", "┍", "┎", "┏" };
-const TopRight = [4]*const [3:0]u8{ "┐", "┑", "┒", "┓" };
-const BottomLeft = [4]*const [3:0]u8{ "└", "┕", "┖", "┗" };
-const BottomRight = [4]*const [3:0]u8{ "┘", "┙", "┚", "┛" };
+const CornerTopLeft = [4]*const [3:0]u8{ "┌", "┍", "┎", "┏" };
+const TeeLeft = [4]*const [3:0]u8{ "├", "┝", "┠", "┣" };
+const CornerBottomLeft = [4]*const [3:0]u8{ "└", "┕", "┖", "┗" };
 
-const LeftTee = [4]*const [3:0]u8{ "├", "┝", "┠", "┣" };
-const RightTee = [4]*const [3:0]u8{ "┤", "┥", "┨", "┫" };
-const TopTee = [4]*const [3:0]u8{ "┬", "┯", "┰", "┳" };
-const BottomTee = [4]*const [3:0]u8{ "┴", "┷", "┸", "┻" };
+const CornerTopRight = [4]*const [3:0]u8{ "┐", "┑", "┒", "┓" };
+const TeeRight = [4]*const [3:0]u8{ "┤", "┥", "┨", "┫" };
+const CornerBottomRight = [4]*const [3:0]u8{ "┘", "┙", "┚", "┛" };
+
+const TeeTop = [4]*const [3:0]u8{ "┬", "┯", "┰", "┳" };
+const TeeBottom = [4]*const [3:0]u8{ "┴", "┷", "┸", "┻" };
 
 const Cross = [4]*const [3:0]u8{ "┼", "┿", "╂", "╋" };
 
@@ -110,8 +111,8 @@ pub fn main() (ArgumentError || InputError)!u8 {
     const stdin = std.io.getStdIn().reader();
     const buffer_size = 1 * MiB; // NOTE: is stack size platform dependent?
 
-    var input: [buffer_size]u8 = [_]u8{0} ** buffer_size;
-    const len = stdin.readAll(&input) catch {
+    var input_stack: [buffer_size]u8 = [_]u8{0} ** buffer_size;
+    const len = stdin.readAll(&input_stack) catch {
         return error.IOError;
     };
 
@@ -124,7 +125,7 @@ pub fn main() (ArgumentError || InputError)!u8 {
         input_heap.ensureTotalCapacity(2 * len) catch {
             return error.BufferFull;
         };
-        input_heap.appendSlice(input[0..]) catch {
+        input_heap.appendSlice(input_stack[0..]) catch {
             return error.BufferFull;
         };
         stdin.readAllArrayList(
@@ -138,7 +139,7 @@ pub fn main() (ArgumentError || InputError)!u8 {
     print_table(
         allocator,
         stdout,
-        if (input_heap.items.len == 0) input[0 .. len - 1] else input_heap.items[0 .. input_heap.items.len - 1],
+        if (input_heap.items.len == 0) input_stack[0 .. len - 1] else input_heap.items[0 .. input_heap.items.len - 1],
         format,
     ) catch {
         return error.IOError;
@@ -225,8 +226,8 @@ pub fn print_table(
     // Top horizontal border
     if (format.horizontal.outer) |top_hborder| {
         try print_horizontal_border(
-            field_widths,
             stdout,
+            field_widths,
             top_hborder,
             format.vertical,
             .top,
@@ -287,16 +288,16 @@ pub fn print_table(
         if (row_num < row_count - 1) {
             if (row_num == 0 and format.horizontal.first != null) {
                 try print_horizontal_border(
-                    field_widths,
                     stdout,
+                    field_widths,
                     format.horizontal.first.?,
                     format.vertical,
                     .first,
                 );
             } else if (format.horizontal.inner) |middle_hborder| {
                 try print_horizontal_border(
-                    field_widths,
                     stdout,
+                    field_widths,
                     middle_hborder,
                     format.vertical,
                     .middle,
@@ -309,8 +310,8 @@ pub fn print_table(
     // Bottom horizontal border
     if (format.horizontal.outer) |bottom_hborder| {
         try print_horizontal_border(
-            field_widths,
             stdout,
+            field_widths,
             bottom_hborder,
             format.vertical,
             .bottom,
@@ -331,8 +332,8 @@ fn get_corner_weight(h_weight: LineWeight, v_weight: LineWeight) CornerWeight {
 }
 
 fn print_horizontal_border(
-    widths: @as(type, std.ArrayListAligned(usize, null)),
     stdout: anytype, // TODO: specify type
+    widths: @as(type, std.ArrayListAligned(usize, null)),
     horiz_format: BorderFmt,
     vertical: Borders,
     location: HorizontalBorderPos,
@@ -344,23 +345,21 @@ fn print_horizontal_border(
     // TODO: remove repeated code between `left` and `right`
     const left: *const [3:0]u8 = if (vertical.outer) |v_format| corner: {
         const corner_weight: usize = @intFromEnum(get_corner_weight(h_weight, v_format.weight));
-        switch (location) {
-            .top => break :corner TopLeft[corner_weight],
-            .first => break :corner LeftTee[corner_weight],
-            .middle => break :corner LeftTee[corner_weight],
-            .bottom => break :corner BottomLeft[corner_weight],
-        }
+        break :corner switch (location) {
+            .top => CornerTopLeft,
+            .first, .middle => TeeLeft,
+            .bottom => CornerBottomLeft,
+        }[corner_weight];
     } else straight: {
         break :straight horizontal[@intFromEnum(h_style)];
     };
     const right: *const [3:0]u8 = if (vertical.outer) |v_format| corner: {
         const corner_weight: usize = @intFromEnum(get_corner_weight(h_weight, v_format.weight));
-        switch (location) {
-            .top => break :corner TopRight[corner_weight],
-            .first => break :corner RightTee[corner_weight],
-            .middle => break :corner RightTee[corner_weight],
-            .bottom => break :corner BottomRight[corner_weight],
-        }
+        break :corner switch (location) {
+            .top => CornerTopRight,
+            .first, .middle => TeeRight,
+            .bottom => CornerBottomRight,
+        }[corner_weight];
     } else straight: {
         break :straight horizontal[@intFromEnum(h_style)];
     };
@@ -375,19 +374,19 @@ fn print_horizontal_border(
 
     const middle = if (middle_weight) |middle| blk: {
         break :blk switch (location) {
-            .top => TopTee[middle],
+            .top => TeeTop[middle],
             .first => Cross[middle],
             .middle => Cross[middle],
-            .bottom => BottomTee[middle],
+            .bottom => TeeBottom[middle],
         };
     } else horizontal[@intFromEnum(h_style)];
 
     const first = if (first_weight) |first| blk: {
         break :blk switch (location) {
-            .top => TopTee[first],
+            .top => TeeTop[first],
             .first => Cross[first],
             .middle => Cross[first],
-            .bottom => BottomTee[first],
+            .bottom => TeeBottom[first],
         };
     } else middle;
 
